@@ -51,7 +51,7 @@ This blocks everything after it. Today a card's id is `'k' + index`, so regenera
 - [x] board mode: 6 categories x 5 values, easiest clue cheapest, right pays and wrong costs like the show, and it never touches your schedule
 - [~] session shapes: six-round night with a running scorecard, and a final wager on the board (capped at what you hold). ~~picture round substitute~~ struck — there are no images in any deck, and inventing a stand-in round would be a different app, not a rehearsal of a real one
 - [x] PWA: manifest + icons rendered in Chrome, service worker (network-first shell so deploys land, cache-first decks so an opened deck survives), verified by cutting the network in CDP and drilling anyway
-- [ ] keyboard-first everywhere; audit focus order and reduced motion
+- [x] keyboard and accessibility pass: every visible control has a name, rows report pressed state, the verdict is a live region, areas are headings, focus is visible, motion is optional, and contrast is measured against what is painted (copper was 3.88:1 and is now 4.61:1)
 
 ## Phase 4 — stats worth opening
 

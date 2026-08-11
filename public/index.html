@@ -19,7 +19,7 @@
   --stout:#150F0B;
   --bar:#2E211A;
   --amber:#E0A128;
-  --copper:#B4633A;
+  --copper:#C2703F;
   --foam:#F2E9DA;
   --foam-dim:#A8998A;
   --sage:#7E9478;
@@ -95,7 +95,7 @@ h1 em{font-style:normal;color:var(--amber)}
 .tap-due{font-family:var(--disp);font-size:24px;text-align:right;line-height:1}
 .tap-due small{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--foam-dim);margin-top:2px}
 .tap-due.zero{color:var(--foam-dim);opacity:.5}
-.area{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+.area{font-family:var(--mono);font-weight:400;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
   color:var(--copper);padding:26px 0 7px;border-bottom:1px solid var(--rule)}
 .area:first-child{padding-top:10px}
 .search-row{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
@@ -311,7 +311,7 @@ h1 em{font-style:normal;color:var(--amber)}
              placeholder="Type it, then Enter" aria-label="Your answer">
       <button class="btn btn-go" id="btnSubmit">Check</button>
     </div>
-    <div class="verdict hidden" id="verdict"></div>
+    <div class="verdict hidden" id="verdict" role="status" aria-live="polite"></div>
 
     <div id="flipRow" class="actions">
       <button class="btn btn-go" id="btnFlip" style="width:100%">Show answer</button>
@@ -690,9 +690,9 @@ function renderBoard(){
     // whatever is switched on stays visible; the rest is what gets trimmed
     const ranked=[...all.filter(c=>catOn(c.id)),...all.filter(c=>!catOn(c.id))];
     const capped=filter||expanded.has(a)?ranked:ranked.slice(0,PER_AREA);
-    rows.push(`<div class="area">${esc(a)} <span style="opacity:.6">· ${all.length}</span></div>`);
+    rows.push(`<h2 class="area">${esc(a)} <span style="opacity:.6">· ${all.length}</span></h2>`);
     for(const c of capped) rows.push(
-      `<div class="tap-row">${tapRow(c)}<button class="dive" data-dive="${esc(c.id)}" title="Drill only this, without changing what is switched on">Dive</button></div>`);
+      `<div class="tap-row">${tapRow(c)}<button class="dive" data-dive="${esc(c.id)}" aria-label="Dive into ${esc(c.name)} — drill only this, without changing what is switched on">Dive</button></div>`);
     if(capped.length<ranked.length)
       rows.push(`<button class="more" data-area="${esc(a)}">show all ${ranked.length} in ${esc(a)}</button>`);
   }
@@ -776,12 +776,13 @@ function paintQuiz(){
   $('quizScore').classList.toggle('neg',quiz.score<0);
   const g=$('quizGrid');
   g.style.gridTemplateColumns=`repeat(${quiz.cats.length},1fr)`;
-  const cells=quiz.cats.map(c=>`<div class="grid-cat">${esc(c.name)}</div>`);
+  const cells=quiz.cats.map(c=>`<div class="grid-cat" role="columnheader">${esc(c.name)}</div>`);
   VALUES.forEach((v,row)=>{
     quiz.cats.forEach((c,col)=>{
       const key=col+':'+row;
       const done=quiz.spent.has(key);
-      cells.push(`<button class="tile" data-cell="${key}" ${done?'disabled':''}>$${v}</button>`);
+      cells.push(`<button class="tile" data-cell="${key}" ${done?'disabled':''}
+        aria-label="$${v} in ${esc(c.name)}${done?', already played':''}">$${v}</button>`);
     });
   });
   g.innerHTML=cells.join('');

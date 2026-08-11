@@ -162,6 +162,61 @@ try {
   ok('migrate: it is packed, not an object', await ev(`Array.isArray(S.sched[cardId(BUILTIN[7].q)]||null)`));
   ok('migrate: unrelated state is untouched', await ev('S.streak===3 && S.answered===11'));
 
+  // --- reachable by keyboard, readable by everyone
+  await reset(); await nav();
+  const unnamed = await ev(`(()=>{
+    const name=el=>(el.getAttribute('aria-label')||el.textContent||el.value||'').trim();
+    return [...document.querySelectorAll('button, input, a[href], [tabindex]')]
+      .filter(el=>el.offsetWidth+el.offsetHeight>0 && !name(el))
+      .map(el=>el.id||el.className||el.tagName);
+  })()`);
+  ok('a11y: every visible control has a name', unnamed.length === 0);
+  if (unnamed.length) console.log('        unnamed: ' + unnamed.join(', '));
+
+  ok('a11y: the category rows say whether they are on', await ev(`
+    [...document.querySelectorAll('.tap')].every(e=>e.getAttribute('aria-pressed')!==null)`));
+  ok('a11y: the dive buttons name their category', await ev(`
+    [...document.querySelectorAll('.dive')].every(e=>/^Dive into .+/.test(e.getAttribute('aria-label')||''))`));
+  ok('a11y: the verdict is announced', await ev(`document.getElementById('verdict').getAttribute('aria-live')==='polite'`));
+  ok('a11y: areas are headings, so you can jump between them', await ev(`document.querySelectorAll('h2.area').length>0`));
+  ok('a11y: focus is visible, not suppressed', await ev(`[...[...document.styleSheets].find(s=>!s.href).cssRules]
+      .some(r=>/focus-visible/.test(r.selectorText||'') && /outline/.test(r.style?.cssText||''))`));
+  ok('a11y: motion is optional', await ev(`[...[...document.styleSheets].find(s=>!s.href).cssRules]
+      .some(r=>/prefers-reduced-motion/.test(r.conditionText||''))`));
+
+  // contrast, measured against what is actually painted
+  const contrast = await ev(`(()=>{
+    const lum=c=>{const [r,g,b]=c.match(/\\d+/g).slice(0,3).map(v=>{v/=255;
+      return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});
+      return .2126*r+.7152*g+.0722*b;};
+    const ratio=(a,b)=>{const [x,y]=[lum(a),lum(b)].sort((p,q)=>q-p); return (x+.05)/(y+.05);};
+    const bg=getComputedStyle(document.body).backgroundColor;
+    const out=[];
+    for(const sel of ['.tap-name','.tap-style','.tap-pct','.subline','.panel-note','.mast-right','.footnote','h2.area','.search-count']){
+      const el=document.querySelector(sel); if(!el) continue;
+      const cs=getComputedStyle(el);
+      out.push({sel, ratio:+ratio(cs.color,bg).toFixed(2), size:parseFloat(cs.fontSize), weight:cs.fontWeight});
+    }
+    return out;
+  })()`);
+  for (const c of contrast) {
+    const large = c.size >= 24 || (c.size >= 18.66 && +c.weight >= 700);
+    const need = large ? 3 : 4.5;
+    ok(`a11y: ${c.sel} contrast ${c.ratio}:1 clears ${need}:1`, c.ratio >= need);
+  }
+
+  // keyboard alone must get you through a card
+  await ev(`document.getElementById('btnDrill').click()`);
+  ok('keys: space flips the card', await ev(`
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true})); flipped===true`));
+  ok('keys: a number grades it', await ev(`
+    const before=S.answered||0;
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'2',bubbles:true}));
+    (S.answered||0)===before+1`));
+  ok('keys: escape leaves the session', await ev(`
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    document.getElementById('board').classList.contains('live')`));
+
   // --- installable, and usable with the wifi off
   await reset(); await nav();
   ok('pwa: the manifest is linked', await ev(`!!document.querySelector('link[rel=manifest]')`));
