@@ -64,11 +64,11 @@ This blocks everything after it. Today a card's id is `'k' + index`, so regenera
 
 ## Phase 5 — proof
 
-- [~] `npm test`: headless CDP suite in place (persistence, migration, import round trip, id stability). Still to add: deck lint, lazy loading, typed-answer matching
-- [ ] every check demonstrated failing before it is trusted
-- [ ] a11y pass: contrast, focus, labels, screen-reader names on the tap rows
-- [ ] performance on a cold phone load with the largest deck
-- [ ] the deployed URL verified after each push, not assumed
+- [x] `npm test` = lint self-test + deck lint + a 150-check CDP suite: persistence, migration, ids, lazy loading, search, dive, keep, typed-answer judging, board, wager, night, PWA, offline, stats, a11y, keyboard, perf
+- [~] every check demonstrated failing before it is trusted — done for the lint rules, ids, leech gate, refill, service worker, contrast, labels and the layout checks. The perf budget is the exception: on this desktop, throttled 4x, the fixed and regressed board draw in 33 ms and 63 ms, so the budget guards against gross regressions but does not separate those two. `scripts/perf.mjs` under mobile emulation does (37 ms against 602 ms), and that is where the claim lives
+- [x] a11y pass: names on every visible control, pressed state, live region, headings, focus visible, reduced motion, and contrast computed from the painted colours (copper was 3.88:1, now 4.61:1)
+- [x] performance measured, not assumed: cold load on a 4x-throttled phone paints the board in ~830 ms over 89 KB in 3 requests. The 8,000-card deck exposed an O(categories x cards) redraw — 602 ms, now 37 ms via a category index
+- [x] every push verified against the deployed URL with the same suite, never assumed — it caught the broken Vercel build that 404'd every deck
 
 ## Not doing
 

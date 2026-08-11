@@ -162,6 +162,32 @@ try {
   ok('migrate: it is packed, not an object', await ev(`Array.isArray(S.sched[cardId(BUILTIN[7].q)]||null)`));
   ok('migrate: unrelated state is untouched', await ev('S.streak===3 && S.answered===11'));
 
+  // --- the board must not get slower as the shelf gets bigger
+  await reset(); await nav();
+  for (let i = 0; i < 60; i++) { if (await ev('manifestReady===true')) break; await sleep(150); }
+  const biggest = await ev(`[...MANIFEST].sort((a,b)=>b.count-a.count)[0]?.count || 0`);
+  if (biggest >= 2000) {
+    /* Unthrottled, this desktop draws the board in single-digit milliseconds
+       whether the code is O(cards) or O(categories x cards) — the budget only
+       separates them on something that feels like a phone. */
+    await send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    const perf = await ev(`(async()=>{
+      const d=[...MANIFEST].sort((a,b)=>b.count-a.count)[0];
+      S.on=[d.id]; await ensureDecks([d.id]);
+      renderBoard();                                  // once to warm up
+      const t0=performance.now(); renderBoard(); const draw=performance.now()-t0;
+      return {draw:Math.round(draw), cards:DECK.length, cats:CATS.length};
+    })()`);
+    console.log(`        ${perf.cards.toLocaleString()} cards over ${perf.cats} categories, CPU throttled 4x`);
+    ok(`perf: the board redraws in ${perf.draw} ms, under 150`, perf.draw < 150);
+    const drill = await ev(`(()=>{const t0=performance.now();
+      document.getElementById('btnDrill').click(); return Math.round(performance.now()-t0);})()`);
+    ok(`perf: a drill starts in ${drill} ms, under 150`, drill < 150);
+    await ev(`document.getElementById('btnQuit').click()`);
+    await send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  } else console.log(`SKIP  biggest deck is only ${biggest} cards — build the local Jeopardy decks to exercise this`);
+  await reset();
+
   // --- the form guide
   await reset(); await nav();
   await ev(`document.getElementById('btnStats').click()`);

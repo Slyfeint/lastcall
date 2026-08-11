@@ -441,7 +441,7 @@ const BUILT_CATS = [
 ];
 
 const BUILTIN = typeof CARDS==='undefined' ? [] : CARDS;
-let DECK=[], CATS=[], BY_ID={}, CAT_BY_ID={};
+let DECK=[], CATS=[], BY_ID={}, CAT_BY_ID={}, BY_CAT={};
 
 /* A card's id is its question, hashed — not its position. Decks get rebuilt and
    reordered; a schedule earned over months must not follow an array index.
@@ -465,6 +465,9 @@ const cardId=q=>hash53(q.toLowerCase().replace(/[^a-z0-9]+/g,'')).toString(36);
 let MANIFEST=[];
 const LOADED=new Map();        // deck id -> its cards
 let deckTrouble='';
+/* There is a real window where the public manifest has landed and the local
+   Jeopardy one has not, so anything waiting on "the shelf" waits on this. */
+let manifestReady=false;
 
 async function loadManifest(){
   try{
@@ -482,6 +485,7 @@ async function loadManifest(){
     // opens the file straight off disk. The house deck still works.
     deckTrouble='Opened from disk, so only the house deck is here. Run npm start, or use the hosted site.';
   }
+  manifestReady=true;
 }
 
 async function ensureDecks(ids){
@@ -513,6 +517,11 @@ function buildDeck(){
     DECK.push({...c,id});
   }
   BY_ID = Object.fromEntries(DECK.map(c=>[c.id,c]));
+  /* Grouped once here because the board asks "how many in this category" for
+     every row: at 834 categories over 8,000 cards, filtering per row is seven
+     million comparisons per repaint. */
+  BY_CAT = {};
+  for(const c of DECK) (BY_CAT[c.c]||(BY_CAT[c.c]=[])).push(c);
   const own={};
   (S.user||[]).forEach(c=>{ if(!own[c.c]) own[c.c]={id:c.c,name:c.cn,style:'Added by you',area:'Yours'}; });
   CATS = BUILT_CATS.concat(MANIFEST.map(d=>({...d,loaded:LOADED.has(d.id)})),Object.values(own));
@@ -728,12 +737,12 @@ function readiness(){
 }
 
 const activeCats=()=>CATS.filter(c=>catOn(c.id)).map(c=>c.id);
-const dueCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!isLeech(c.id)&&S.sched[c.id]&&S.sched[c.id][DUE]<=today());
-const newCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!S.sched[c.id]);
+const dueCards=cid=>(cid?BY_CAT[cid]||[]:DECK).filter(c=>!isLeech(c.id)&&S.sched[c.id]&&S.sched[c.id][DUE]<=today());
+const newCards=cid=>(cid?BY_CAT[cid]||[]:DECK).filter(c=>!S.sched[c.id]);
 const leechCards=()=>{const act=activeCats();return DECK.filter(c=>act.includes(c.c)&&isLeech(c.id));};
 
 function mastery(cid){
-  const pool=DECK.filter(c=>c.c===cid);
+  const pool=BY_CAT[cid]||[];
   let t=0;
   pool.forEach(c=>{const s=S.sched[c.id]; if(s&&s[REPS]>0) t+=Math.min(s[IVL],21)/21;});
   return pool.length? t/pool.length : 0;
@@ -754,9 +763,9 @@ function renderBoard(){
   const leeches=leechCards().length;
   const seen=DECK.filter(c=>S.sched[c.id]).length;   // orphaned schedules stay in storage, off the count
   // mastery is only meaningful over categories whose cards are actually here
-  const live=CATS.filter(c=>DECK.some(x=>x.c===c.id));
+  const live=CATS.filter(c=>BY_CAT[c.id]);
   const overall=live.length?Math.round(live.reduce((a,c)=>a+mastery(c.id),0)/live.length*100):0;
-  const shelf=CATS.reduce((n,c)=>n+(DECK.some(x=>x.c===c.id)?0:(c.count||0)),0);
+  const shelf=CATS.reduce((n,c)=>n+(BY_CAT[c.id]?0:(c.count||0)),0);
 
   $('mastStat').innerHTML=
     `<b>${overall}%</b> mastered · <b>${seen}</b>/${DECK.length} cards seen<br>`+
@@ -804,7 +813,7 @@ function renderBoard(){
 
   function tapRow(c){
     const on=catOn(c.id);
-    const here=DECK.filter(x=>x.c===c.id).length;   // 0 until the deck is fetched
+    const here=(BY_CAT[c.id]||[]).length;           // 0 until the deck is fetched
     const count=here||c.count||0;
     const m=Math.round(mastery(c.id)*100);
     const d=dueCards(c.id).length+newCards(c.id).length;
@@ -991,7 +1000,7 @@ let quiz=null;
 
 function eligibleCats(){
   const act=activeCats();
-  return act.filter(id=>DECK.filter(c=>c.c===id).length>=VALUES.length);
+  return act.filter(id=>(BY_CAT[id]||[]).length>=VALUES.length);
 }
 
 function startQuiz(){
@@ -1001,7 +1010,7 @@ function startQuiz(){
   quiz={score:0,cats:picks.map(id=>({
     id, name:CAT_BY_ID[id]?.name||id,
     // easiest first, so the cheap clues really are the cheap ones
-    cards:shuffle(DECK.filter(c=>c.c===id)).sort((a,b)=>(a.d||2)-(b.d||2)).slice(0,VALUES.length).map(c=>c.id),
+    cards:shuffle((BY_CAT[id]||[]).slice()).sort((a,b)=>(a.d||2)-(b.d||2)).slice(0,VALUES.length).map(c=>c.id),
   })),spent:new Set()};
   paintQuiz();
   show('quizView');
@@ -1113,7 +1122,7 @@ async function startDive(cid){
 function diveQueue(cid){
   const due=shuffle(dueCards(cid));
   const fresh=shuffle(newCards(cid));
-  const rest=shuffle(DECK.filter(c=>c.c===cid&&!due.includes(c)&&!fresh.includes(c)));
+  const rest=shuffle((BY_CAT[cid]||[]).filter(c=>!due.includes(c)&&!fresh.includes(c)));
   return [...due,...fresh,...rest].slice(0,40);
 }
 
