@@ -50,7 +50,7 @@ This blocks everything after it. Today a card's id is `'k' + index`, so regenera
 - [x] rabbit-hole mode: a Dive button per row drills that category alone, refilling instead of ending, without touching what is switched on; "Keep this card" copies it into your own cards so it outlives the deck
 - [x] board mode: 6 categories x 5 values, easiest clue cheapest, right pays and wrong costs like the show, and it never touches your schedule
 - [~] session shapes: six-round night with a running scorecard, and a final wager on the board (capped at what you hold). ~~picture round substitute~~ struck — there are no images in any deck, and inventing a stand-in round would be a different app, not a rehearsal of a real one
-- [ ] PWA: offline, installable, phone-first drilling
+- [x] PWA: manifest + icons rendered in Chrome, service worker (network-first shell so deploys land, cache-first decks so an opened deck survives), verified by cutting the network in CDP and drilling anyway
 - [ ] keyboard-first everywhere; audit focus order and reduced motion
 
 ## Phase 4 — stats worth opening

@@ -1,0 +1,16 @@
+{
+  "name": "Last Call — trivia drill",
+  "short_name": "Last Call",
+  "description": "A spaced-repetition drill for the categories your table keeps punting on.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#241A14",
+  "theme_color": "#241A14",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

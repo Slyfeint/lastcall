@@ -10,7 +10,8 @@ import { extname, join, normalize } from 'node:path';
 const PORT = +(process.argv[2] || 8080);
 const ROOT = 'public';
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
-                '.css': 'text/css', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
+                '.css': 'text/css', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json',
+                '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2' };
 
 createServer(async (req, res) => {
   let path = decodeURIComponent(req.url.split('?')[0]);

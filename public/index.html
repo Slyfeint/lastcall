@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Last Call — trivia drill</title>
+<meta name="description" content="A spaced-repetition drill for the categories your table keeps punting on.">
+<meta name="theme-color" content="#241A14">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Karla:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -1200,6 +1206,12 @@ function selftest(){
 
   document.body.innerHTML=`<pre style="font:13px/1.7 var(--mono);padding:30px;white-space:pre-wrap">`+
     out.join('\n')+`\n\n${bad?bad+' FAILED':'all '+out.length+' passed'}</pre>`;
+}
+
+/* Service workers need a secure context, which rules out file:// — the app
+   still works there, it just does not install. */
+if('serviceWorker' in navigator && location.protocol!=='file:'){
+  addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 
 (async()=>{

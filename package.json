@@ -16,7 +16,8 @@
     "build:elements": "node scripts/build-elements.mjs",
     "build:manifest": "node scripts/build-manifest.mjs",
     "start": "node scripts/serve.mjs",
-    "decks": "npm run build:otdb && npm run build:elements && npm run build:manifest"
+    "decks": "npm run build:otdb && npm run build:elements && npm run build:manifest",
+    "build:icons": "node scripts/make-icons.mjs"
   },
   "license": "MIT"
 }

@@ -162,6 +162,42 @@ try {
   ok('migrate: it is packed, not an object', await ev(`Array.isArray(S.sched[cardId(BUILTIN[7].q)]||null)`));
   ok('migrate: unrelated state is untouched', await ev('S.streak===3 && S.answered===11'));
 
+  // --- installable, and usable with the wifi off
+  await reset(); await nav();
+  ok('pwa: the manifest is linked', await ev(`!!document.querySelector('link[rel=manifest]')`));
+  const mf = await ev(`fetch('manifest.webmanifest').then(r=>r.ok?r.json():null)`);
+  ok('pwa: the manifest is served and parses', !!mf);
+  ok('pwa: it is standalone with a name and a start url', mf?.display === 'standalone' && !!mf?.name && !!mf?.start_url);
+  ok('pwa: it offers a 192 and a 512 icon', ['192x192', '512x512'].every(s => mf?.icons?.some(i => i.sizes === s)));
+  ok('pwa: one icon is maskable', mf?.icons?.some(i => (i.purpose || '').includes('maskable')));
+  for (const f of ['icon-192.png', 'icon-512.png']) {
+    ok(`pwa: ${f} is really there`, await ev(`fetch('${f}').then(r=>r.ok&&r.headers.get('content-type')==='image/png')`));
+  }
+
+  ok('pwa: the service worker registers', await ev(`navigator.serviceWorker.register('sw.js').then(()=>true,()=>false)`));
+  await ev(`navigator.serviceWorker.ready.then(()=>true)`);
+  // load a deck so it is in the cache, then reload to be sure the worker is driving
+  const offlineDeck = await ev('MANIFEST[0].id');
+  await ev(`document.querySelector('.tap[data-cat=${JSON.stringify(offlineDeck)}]').click()`);
+  await sleep(800);
+  await ev('flush()');
+  await nav(); await sleep(600);
+
+  await send('Network.enable');
+  await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  await nav();
+  ok('offline: the app still loads with the network cut', await ev(`!!document.getElementById('mastStat')`));
+  // defensive: if the page failed to load at all these must report, not throw
+  ok('offline: the house deck is there', await ev(`typeof BUILTIN!=='undefined' && BUILTIN.length>0`));
+  ok('offline: a deck you had opened is still there',
+     await ev(`typeof LOADED!=='undefined' && LOADED.has(${JSON.stringify(offlineDeck)}) && DECK.some(c=>c.c===${JSON.stringify(offlineDeck)})`));
+  await ev(`(()=>{ try{ document.getElementById('btnDrill').click(); flip(); answer(2); }catch(e){} })()`);
+  ok('offline: you can still drill and it still counts', await ev(`typeof S!=='undefined' && S.answered>=1`));
+  await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  await nav();
+  await ev(`navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister())))`);
+  await ev(`caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k))))`);
+
   // --- the board game
   await reset(); await nav();
   await ev(`document.getElementById('btnBoardGame').click()`);
