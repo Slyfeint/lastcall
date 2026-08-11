@@ -92,6 +92,15 @@ h1 em{font-style:normal;color:var(--amber)}
 .area{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
   color:var(--copper);padding:26px 0 7px;border-bottom:1px solid var(--rule)}
 .area:first-child{padding-top:10px}
+.search-row{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
+.search-row input{flex:1;background:var(--stout);border:1px solid var(--rule);color:var(--foam);
+  font-family:var(--mono);font-size:12px;letter-spacing:.04em;padding:10px 12px}
+.search-row input::placeholder{color:var(--foam-dim)}
+.search-row input:focus{outline:1px solid var(--amber)}
+.search-count{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--foam-dim);white-space:nowrap}
+.more{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--copper);
+  padding:11px 0;border-bottom:1px solid var(--rule);width:100%;text-align:left}
+.more:hover{color:var(--amber)}
 .tap.busy{opacity:.6;cursor:progress}
 .tap.busy .tap-fill{width:100%!important;background:var(--copper);animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.35}}
@@ -195,6 +204,13 @@ h1 em{font-style:normal;color:var(--amber)}
         <button class="btn" id="btnRound">Run a round of 10</button>
         <button class="btn hidden" id="btnLeech">Sticking points</button>
       </div>
+    </div>
+
+    <div class="search-row">
+      <input id="deckSearch" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search categories — try opera, or 1970s, or potpourri"
+             aria-label="Search categories">
+      <span class="search-count" id="searchCount"></span>
     </div>
 
     <div class="list-head">
@@ -324,6 +340,12 @@ async function loadManifest(){
     const r=await fetch('decks/manifest.json');
     if(!r.ok) throw new Error(r.status);
     MANIFEST=(await r.json()).decks||[];
+    // Built locally by scripts/build-jeopardy.mjs and never deployed, so this
+    // is a 404 on the hosted site and a few hundred decks on your own machine.
+    try{
+      const j=await fetch('decks/jeopardy/manifest.json');
+      if(j.ok) MANIFEST=MANIFEST.concat((await j.json()).decks||[]);
+    }catch(e){}
   }catch(e){
     // fetch() is blocked on file://, so this is the normal case when someone
     // opens the file straight off disk. The house deck still works.
@@ -471,6 +493,8 @@ function mastery(cid){
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const loading=new Set();
+const expanded=new Set();
+const PER_AREA=12;
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;};
 
 function renderBoard(){
@@ -498,17 +522,41 @@ function renderBoard(){
   $('btnLeech').classList.toggle('hidden',!leeches);
   $('btnLeech').textContent=`Sticking points (${leeches})`;
 
+  /* At 23 decks a flat list is fine; with the local Jeopardy build it is 800,
+     so each area shows a dozen until you ask for more, and search cuts across
+     the lot. */
+  const filter=($('deckSearch').value||'').trim().toLowerCase();
+  const hit=c=>!filter||`${c.name} ${c.style} ${c.area}`.toLowerCase().includes(filter);
+  const shown=CATS.filter(hit);
+  $('searchCount').textContent = filter
+    ? `${shown.length} of ${CATS.length}`
+    : `${CATS.length} categories`;
+
   const rows=[];
-  let area=null;
-  for(const c of CATS){
-    if(c.area!==area){ area=c.area; rows.push(`<div class="area">${esc(area||'')}</div>`); }
+  const areas=[...new Set(shown.map(c=>c.area||''))];
+  for(const a of areas){
+    const all=shown.filter(c=>(c.area||'')===a);
+    // whatever is switched on stays visible; the rest is what gets trimmed
+    const ranked=[...all.filter(c=>catOn(c.id)),...all.filter(c=>!catOn(c.id))];
+    const capped=filter||expanded.has(a)?ranked:ranked.slice(0,PER_AREA);
+    rows.push(`<div class="area">${esc(a)} <span style="opacity:.6">· ${all.length}</span></div>`);
+    for(const c of capped) rows.push(tapRow(c));
+    if(capped.length<ranked.length)
+      rows.push(`<button class="more" data-area="${esc(a)}">show all ${ranked.length} in ${esc(a)}</button>`);
+  }
+  if(!shown.length) rows.push(`<div class="area">Nothing matches “${esc(filter)}”</div>`);
+  $('tapList').innerHTML=rows.join('');
+
+  document.querySelectorAll('.more').forEach(el=>el.onclick=()=>{ expanded.add(el.dataset.area); renderBoard(); });
+
+  function tapRow(c){
     const on=catOn(c.id);
     const here=DECK.filter(x=>x.c===c.id).length;   // 0 until the deck is fetched
     const count=here||c.count||0;
     const m=Math.round(mastery(c.id)*100);
     const d=dueCards(c.id).length+newCards(c.id).length;
     const busy=loading.has(c.id);
-    rows.push(`<button class="tap ${on?'on':'off'}${busy?' busy':''}" data-cat="${c.id}" aria-pressed="${on}">
+    return `<button class="tap ${on?'on':'off'}${busy?' busy':''}" data-cat="${esc(c.id)}" aria-pressed="${on}">
       <span class="tap-check"></span>
       <span>
         <span class="tap-name">${esc(c.name)}</span>
@@ -519,9 +567,8 @@ function renderBoard(){
         <span class="tap-pct">${busy?'loading…':`${here?m+'% · ':''}${count} cards`}</span>
       </span>
       <span class="tap-due ${d?'':'zero'}">${here?d:'·'}<small>${here?'ready':'off'}</small></span>
-    </button>`);
+    </button>`;
   }
-  $('tapList').innerHTML=rows.join('');
 
   document.querySelectorAll('.tap').forEach(el=>el.onclick=async()=>{
     const id=el.dataset.cat;
@@ -636,6 +683,7 @@ $('btnBack').onclick=()=>{renderBoard();show('board');};
 document.querySelectorAll('#gradeRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.g));
 document.querySelectorAll('#roundRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.r));
 $('btnLeech').onclick=startLeechDrill;
+$('deckSearch').oninput=()=>renderBoard();
 $('btnReset').onclick=()=>{
   if(!confirm('Clear every card\u2019s scheduling and your streak? Cards you added stay. This cannot be undone.')) return;
   const user=S.user;

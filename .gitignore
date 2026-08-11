@@ -8,3 +8,6 @@ prof/
 public/decks/jeopardy/
 
 .vercel
+
+# screenshots from scripts/shot.mjs
+/*.png

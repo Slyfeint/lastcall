@@ -77,7 +77,7 @@ try {
 
   await nav(); await reset(); await nav();
   ok('boot: the built-in deck loaded', await ev('BUILTIN.length > 0'));
-  ok('boot: the board rendered every category', await ev('document.querySelectorAll(".tap").length === CATS.length'));
+  ok('boot: every house category has a tap', await ev('BUILT_CATS.every(c=>document.querySelector(`.tap[data-cat="${c.id}"]`))'));
 
   // --- progress survives a reload. Nothing else matters until this holds.
   await ev(`document.getElementById('btnDrill').click();
@@ -98,8 +98,39 @@ try {
   await reset(); await nav();
   ok('shelf: the manifest was read', await ev('MANIFEST.length >= 20'));
   ok('shelf: nothing extra was fetched at boot', await ev('LOADED.size === 0'));
-  ok('shelf: every deck on the shelf shows a tap', await ev('document.querySelectorAll(".tap").length === CATS.length'));
   ok('shelf: areas group the board', await ev('document.querySelectorAll(".area").length >= 5'));
+  ok('shelf: an area never renders more than a dozen rows unasked',
+     await ev(`[...document.querySelectorAll('.area')].every(h=>{
+       let n=0,el=h.nextElementSibling;
+       while(el&&el.classList.contains('tap')){n++;el=el.nextElementSibling;}
+       return n<=PER_AREA;
+     })`));
+
+  // --- search has to reach a deck the board is not currently showing
+  const hidden = await ev(`(()=>{
+    const drawn=new Set([...document.querySelectorAll('.tap')].map(e=>e.dataset.cat));
+    const c=CATS.find(x=>!drawn.has(x.id));
+    return c?c.name:null;
+  })()`);
+  ok('search: some deck starts out folded away', !!hidden);
+  await ev(`document.getElementById('deckSearch').value=${JSON.stringify((hidden||'').slice(0, 6))};
+            document.getElementById('deckSearch').dispatchEvent(new Event('input'))`);
+  ok('search: it finds it', await ev(`[...document.querySelectorAll('.tap-name')].some(e=>e.textContent===${JSON.stringify(hidden)})`));
+  ok('search: and narrows the count', await ev('document.getElementById("searchCount").textContent.includes(" of ")'));
+  await ev(`document.getElementById('deckSearch').value='zzzznothing';
+            document.getElementById('deckSearch').dispatchEvent(new Event('input'))`);
+  ok('search: says so when nothing matches', await ev(`document.querySelectorAll('.tap').length===0 && /Nothing matches/.test(document.getElementById('tapList').textContent)`));
+  await ev(`document.getElementById('deckSearch').value='';
+            document.getElementById('deckSearch').dispatchEvent(new Event('input'))`);
+  ok('search: clearing it brings the board back', await ev('document.querySelectorAll(".tap").length > 5'));
+
+  const moreBtn = await ev(`!!document.querySelector('.more')`);
+  ok('shelf: a folded area offers to show the rest', moreBtn);
+  if (moreBtn) {
+    const shownBefore = await ev('document.querySelectorAll(".tap").length');
+    await ev(`document.querySelector('.more').click()`);
+    ok('shelf: showing the rest actually adds rows', await ev(`document.querySelectorAll(".tap").length > ${shownBefore}`));
+  }
   const shelfDeck = await ev('MANIFEST.find(d=>d.count>50).id');
   const before = await ev('DECK.length');
   await ev(`document.querySelector('.tap[data-cat=${JSON.stringify(shelfDeck)}]').click()`);
