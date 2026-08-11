@@ -123,7 +123,9 @@ h1 em{font-style:normal;color:var(--amber)}
 .a-wrap{border-top:1px solid var(--rule);padding-top:20px}
 .a{font-family:var(--body);font-weight:600;font-size:clamp(20px,3.4vw,27px);color:var(--amber);line-height:1.25}
 .note{font-family:var(--body);font-style:italic;font-size:14px;color:var(--foam-dim);margin-top:9px;line-height:1.45}
-.hidden{display:none}
+/* !important because .grades and .type-row are declared later with the same
+   specificity, and without it a "hidden" grade row renders anyway */
+.hidden{display:none!important}
 .grades{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .grade{border:1.5px solid var(--rule);padding:14px 10px;text-align:center;transition:all .13s}
 .grade b{display:block;font-family:var(--disp);font-size:19px;text-transform:uppercase;letter-spacing:.04em}
@@ -135,6 +137,21 @@ h1 em{font-style:normal;color:var(--amber)}
 .stage-foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:10px}
 .keys{font-family:var(--mono);font-size:10px;color:var(--foam-dim);letter-spacing:.05em}
 .keys kbd{border:1px solid var(--rule);padding:1px 5px;margin:0 1px;font-size:9.5px}
+
+/* ---------- typed answers ---------- */
+.type-row{display:flex;gap:12px;margin-bottom:12px}
+.type-row input{flex:1;background:var(--stout);border:1.5px solid var(--rule);color:var(--foam);
+  font-family:var(--body);font-size:20px;padding:12px 16px}
+.type-row input:focus{outline:none;border-color:var(--amber)}
+.verdict{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  padding:10px 14px;margin-bottom:12px;border-left:3px solid var(--rule)}
+.verdict.right{color:var(--sage);border-color:var(--sage);background:rgba(126,148,120,.1)}
+.verdict.close{color:var(--amber);border-color:var(--amber);background:rgba(224,161,40,.1)}
+.verdict.wrong{color:var(--oxblood);border-color:var(--oxblood);background:rgba(158,66,66,.12)}
+.verdict b{font-weight:400;color:var(--foam)}
+.toggle{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--foam-dim);border:1px solid var(--rule);padding:7px 12px}
+.toggle[aria-pressed="true"]{color:var(--stout);background:var(--amber);border-color:var(--amber)}
 
 /* ---------- round scoring ---------- */
 .tally{display:flex;gap:5px;margin-bottom:18px;flex-wrap:wrap}
@@ -203,6 +220,7 @@ h1 em{font-style:normal;color:var(--amber)}
         <button class="btn btn-go" id="btnDrill">Start drill</button>
         <button class="btn" id="btnRound">Run a round of 10</button>
         <button class="btn hidden" id="btnLeech">Sticking points</button>
+        <button class="toggle" id="btnTyped" aria-pressed="false">Type the answers</button>
       </div>
     </div>
 
@@ -254,6 +272,13 @@ h1 em{font-style:normal;color:var(--amber)}
         </div>
       </div>
     </div>
+
+    <div id="typeRow" class="type-row hidden">
+      <input id="typed" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+             placeholder="Type it, then Enter" aria-label="Your answer">
+      <button class="btn btn-go" id="btnSubmit">Check</button>
+    </div>
+    <div class="verdict hidden" id="verdict"></div>
 
     <div id="flipRow" class="actions">
       <button class="btn btn-go" id="btnFlip" style="width:100%">Show answer</button>
@@ -391,7 +416,7 @@ function buildDeck(){
 /* ============ STORAGE ============ */
 const KEY='lastcall:v1';
 let mem=null, TESTING=false;
-const DEFAULT=()=>({v:3,sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[]});
+const DEFAULT=()=>({v:3,sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[],typed:false});
 let S=DEFAULT();
 
 const Store = {
@@ -452,6 +477,77 @@ async function flush(){
   catch(e){ const el=$('subline'); if(el) el.textContent='Storage is full — progress is not being saved. Export a backup.'; }
 }
 addEventListener('pagehide',flush);
+
+/* ============ JUDGING A TYPED ANSWER ============ */
+/* Forgiving enough that spelling does not cost you the card, strict enough
+   that it never tells you that you were right when you were not. When it
+   cannot be sure it says "close" and hands the decision back to you. */
+
+const fold=s=>String(s??'')
+  .normalize('NFD').replace(/[̀-ͯ]/g,'')      // café -> cafe
+  .toLowerCase()
+  .replace(/^(what|who|where|when|which)\s+(is|are|was|were)\s+/,'')   // Jeopardy phrasing
+  .replace(/&/g,' and ')
+  .replace(/[^a-z0-9 ]+/g,' ')
+  .replace(/\b(the|a|an)\b/g,' ')
+  .replace(/\s+/g,' ').trim();
+
+const stem=s=>s.replace(/(\w)s\b/g,'$1');              // plural tolerance, both ways
+
+/* An answer often carries more than one acceptable way to say it. */
+function variants(a){
+  const out=new Set();
+  for(const chunk of [String(a??''), String(a??'').replace(/\([^)]*\)/g,' ')]){
+    for(const alt of chunk.split(/\s*\/\s*|\s+or\s+/i)){
+      const f=fold(alt);
+      if(f) out.add(f);
+      /* A short tail after a comma is a qualifier — "Angel Falls, Venezuela" is
+         still Angel Falls. A long one is a second thing the card is asking for,
+         so "Poseidon, known to the Romans as Neptune" keeps both halves and a
+         half-answer comes back as "close" rather than as right. */
+      const [head,...tail]=alt.split(',');
+      const tailWords=tail.join(' ').trim().split(/\s+/).filter(Boolean).length;
+      if(tail.length && tailWords<=2){ const h=fold(head); if(h) out.add(h); }
+    }
+  }
+  return [...out];
+}
+
+function lev(a,b){
+  if(a===b) return 0;
+  const prev=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    let diag=prev[0]; prev[0]=i;
+    for(let j=1;j<=b.length;j++){
+      const tmp=prev[j];
+      prev[j]=Math.min(prev[j]+1, prev[j-1]+1, diag+(a[i-1]===b[j-1]?0:1));
+      diag=tmp;
+    }
+  }
+  return prev[b.length];
+}
+
+/* A typo, not a different answer. Short strings get no forgiveness at all:
+   "7" is one edit from "27" and 1968 is one edit from 1969, and neither is a
+   slip of the finger. */
+const nearly=(x,y)=>{
+  if(/\d/.test(x)||/\d/.test(y)) return false;
+  const len=Math.max(x.length,y.length);
+  if(len<5) return false;
+  return Math.abs(x.length-y.length)<=2 && lev(x,y)<=(len>8?2:1);
+};
+
+function judge(typed,answer){
+  const t=fold(typed);
+  if(!t) return 'wrong';
+  const vs=variants(answer);
+  for(const v of vs) if(t===v||stem(t)===stem(v)||nearly(t,v)) return 'right';
+  // said one half of a two-part answer, or buried it in a sentence
+  const whole=fold(answer);
+  if(t.length>=4 && whole.includes(t)) return 'close';
+  for(const v of vs) if(v.length>=4 && t.includes(v)) return 'close';
+  return 'wrong';
+}
 
 /* ============ SCHEDULING ============ */
 const DAY=86400000;
@@ -587,7 +683,7 @@ function renderBoard(){
 }
 
 /* ---- session engine ---- */
-let Q=[],idx=0,mode='drill',flipped=false,score=0,missed=[];
+let Q=[],idx=0,mode='drill',flipped=false,score=0,missed=[],lastVerdict=null;
 
 function show(view){
   ['board','stage','resultView'].forEach(v=>$(v).classList.toggle('live',v===view));
@@ -628,11 +724,14 @@ function paint(){
   $('cardNote').textContent=c.n||'';
   $('cardNote').classList.toggle('hidden',!c.n);
   $('aWrap').classList.add('hidden');
-  $('flipRow').classList.remove('hidden');
   $('gradeRow').classList.add('hidden');
   $('roundRow').classList.add('hidden');
+  $('verdict').classList.add('hidden');
+  $('typed').value='';
+  $('typeRow').classList.toggle('hidden',!S.typed);
+  $('flipRow').classList.toggle('hidden',!!S.typed);
   $('progFill').style.width=(idx/Q.length*100)+'%';
-  $('btnFlip').focus();
+  (S.typed?$('typed'):$('btnFlip')).focus();
 }
 
 function flip(){
@@ -640,7 +739,31 @@ function flip(){
   flipped=true;
   $('aWrap').classList.remove('hidden');
   $('flipRow').classList.add('hidden');
+  $('typeRow').classList.add('hidden');
   $(mode==='drill'?'gradeRow':'roundRow').classList.remove('hidden');
+}
+
+/* Typing marks the card, it does not grade it. A verdict of "close" is a real
+   answer to "did you know this", and only you can settle it. */
+function submitTyped(){
+  if(flipped) return;
+  const c=BY_ID[Q[idx]];
+  const said=$('typed').value;
+  const v=judge(said,c.a);
+  lastVerdict=v;
+  flip();
+  const el=$('verdict');
+  el.className='verdict '+v;
+  el.innerHTML = v==='right' ? 'Right'
+    : v==='close' ? `Close — you said <b>${esc(said)}</b>`
+    : said.trim() ? `Not it — you said <b>${esc(said)}</b>` : 'No answer given';
+  if(mode==='drill'){
+    // preselect, do not decide: right lands on "got it", the rest on "missed"
+    const btn=document.querySelector('#gradeRow '+(v==='right'?'.g2':'.g1'));
+    if(btn) btn.focus();
+  }else{
+    answer(v==='right'?1:0);
+  }
 }
 
 function answer(g){
@@ -684,6 +807,12 @@ document.querySelectorAll('#gradeRow .grade').forEach(b=>b.onclick=()=>answer(+b
 document.querySelectorAll('#roundRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.r));
 $('btnLeech').onclick=startLeechDrill;
 $('deckSearch').oninput=()=>renderBoard();
+$('btnSubmit').onclick=submitTyped;
+$('typed').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); submitTyped(); } };
+$('btnTyped').onclick=()=>{
+  S.typed=!S.typed; save();
+  $('btnTyped').setAttribute('aria-pressed',String(!!S.typed));
+};
 $('btnReset').onclick=()=>{
   if(!confirm('Clear every card\u2019s scheduling and your streak? Cards you added stay. This cannot be undone.')) return;
   const user=S.user;
@@ -731,6 +860,9 @@ $('fileImport').onchange=async e=>{
 
 document.addEventListener('keydown',e=>{
   if(!$('stage').classList.contains('live')) return;
+  // while you are typing an answer, space is a space and 1 is a one
+  const typing=el=>/^(INPUT|TEXTAREA)$/.test(el?.tagName||'');
+  if(typing(e.target)||typing(document.activeElement)) return;
   if(e.key===' '||e.key==='Enter'){ e.preventDefault(); if(!flipped) flip(); }
   else if(e.key==='Escape'){ renderBoard(); show('board'); }
   else if(flipped&&['1','2','3'].includes(e.key)){
@@ -744,6 +876,42 @@ function selftest(){
   TESTING=true;
   const out=[]; let bad=0;
   const ok=(name,cond)=>{ if(!cond) bad++; out.push((cond?'PASS  ':'FAIL  ')+name); };
+
+  /* The judge is the one place this app can lie to you, so it gets the
+     longest table. "close" means it will not decide for you. */
+  const RIGHT=[
+    ['Canberra','Canberra'], ['canberra','Canberra'], ['  CANBERRA  ','Canberra'],
+    ['the nile','The Nile'], ['nile','The Nile'],
+    ['Brasilia','Brasília'], ['salvador dali','Salvador Dalí'],
+    ['Canbera','Canberra'],                       // one slip
+    ['Michaelangelo','Michelangelo'],             // two slips in a long word
+    ['what is the pequod','The Pequod'],          // Jeopardy phrasing
+    ['blue whales','The blue whale'],             // plural
+    ['Heracles','Heracles, or Hercules to the Romans'],
+    ['Angel Falls','Angel Falls, Venezuela'],
+    ['Mauna Kea','Mauna Kea, Hawaii'],
+    ['ampere','The ampere'],
+    ['simon and garfunkel','Simon & Garfunkel'],
+  ];
+  const CLOSE=[
+    ['Poseidon','Poseidon, known to the Romans as Neptune'],   // half of a two-part answer
+    ['Neptune','Poseidon, known to the Romans as Neptune'],
+    ['Hercules','Heracles, or Hercules to the Romans'],        // the other name, buried in a clause
+    ['Wimbledon','The Australian Open, the French Open, Wimbledon, and the US Open'],
+  ];
+  const WRONG=[
+    ['Sydney','Canberra'], ['','Canberra'], ['   ','Canberra'],
+    ['Amazon','The Nile'],
+    ['Bern','Berlin'],                            // near-miss that is a different answer
+    ['Michelangelo','Michel Foucault'],
+    ['7','27'],                                   // one edit apart, not a typo
+    ['1968','1969'],
+    ['Bonn','Bern'],                              // too short to forgive anything
+    ['206','207'],
+  ];
+  for(const [said,ans] of RIGHT) ok(`judge: "${said}" is right for "${ans}"`, judge(said,ans)==='right');
+  for(const [said,ans] of CLOSE) ok(`judge: "${said}" is close for "${ans}"`, judge(said,ans)==='close');
+  for(const [said,ans] of WRONG) ok(`judge: "${said}" is wrong for "${ans}"`, judge(said,ans)==='wrong');
 
   const rows=parseTSV('Local\tWhere\tMill Street\tnote here\r\nSuperlatives\tQ2\tA2\r\n\r\nbad row\r\n');
   ok('TSV: CRLF + 3-field row + junk filtered, 2 kept', rows.length===2);
@@ -799,6 +967,7 @@ function selftest(){
   buildDeck(); renderBoard();                  // the house deck paints immediately
   await loadManifest();
   buildDeck(); renderBoard();                  // then the shelf appears
+  $('btnTyped').setAttribute('aria-pressed',String(!!S.typed));
   await ensureDecks(S.on||[]);                 // then whatever was switched on last time
   renderBoard();
   if(!BUILTIN.length) $('sessionNote').textContent='cards.js did not load — keep it next to this file.';

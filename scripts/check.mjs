@@ -71,6 +71,10 @@ const nav = async (url = TARGET) => {
 // pagehide flushes the live page's state over anything written from outside,
 // so a clean slate means resetting S itself, not clearing the store
 const reset = () => ev('S=DEFAULT(); flush()');
+/* A class named "hidden" is not the same as being invisible — CSS gets a vote.
+   Ask the layout, not the class list. */
+const visible = id => ev(`(()=>{const e=document.getElementById(${JSON.stringify(id)});
+  return !!(e && e.offsetWidth + e.offsetHeight > 0);})()`);
 
 try {
   console.log(`--- ${TARGET}\n`);
@@ -157,6 +161,50 @@ try {
   ok('migrate: the schedule itself came through', await ev(`S.sched[cardId(BUILTIN[7].q)]?.[0]===9`));
   ok('migrate: it is packed, not an object', await ev(`Array.isArray(S.sched[cardId(BUILTIN[7].q)]||null)`));
   ok('migrate: unrelated state is untouched', await ev('S.streak===3 && S.answered===11'));
+
+  // --- typing the answer
+  await reset(); await nav();
+  ok('typed: off by default, the flip button is what you get', await ev(`!document.getElementById('flipRow').classList.contains('hidden')`));
+  await ev(`document.getElementById('btnTyped').click()`);
+  ok('typed: the toggle reports itself pressed', await ev(`document.getElementById('btnTyped').getAttribute('aria-pressed')==='true'`));
+  await ev(`document.getElementById('btnDrill').click()`);
+  ok('typed: the drill asks for an answer instead of a flip',
+     await ev(`!document.getElementById('typeRow').classList.contains('hidden') && document.getElementById('flipRow').classList.contains('hidden')`));
+  ok('typed: the box has focus, so you can just type', await ev(`document.activeElement===document.getElementById('typed')`));
+
+  // space belongs in the answer, not on the flip button
+  await ev(`document.getElementById('typed').focus();
+            document.getElementById('typed').value='new york';
+            document.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true}))`);
+  ok('typed: space does not flip the card out from under you', await ev(`!flipped`));
+
+  const right = await ev(`(()=>{
+    const c=BY_ID[Q[idx]];
+    const t=document.getElementById('typed');
+    t.value=c.a; t.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+    return document.getElementById('verdict').className;
+  })()`);
+  ok('typed: the exact answer reads as right', /right/.test(right));
+  ok('typed: the card is revealed either way', await visible('aWrap'));
+  ok('typed: it still asks you to grade it', await visible('gradeRow'));
+  // the class said hidden while CSS rendered it anyway, so measure the layout
+  ok('typed: the answer box is gone once the card is revealed', !(await visible('typeRow')));
+  ok('typed: only one grade row is on screen at a time', !(await visible('roundRow')));
+  ok('typed: with "got it" preselected', await ev(`document.activeElement===document.querySelector('#gradeRow .g2')`));
+
+  await ev(`document.querySelector('#gradeRow .g2').click()`);
+  const wrong = await ev(`(()=>{
+    const t=document.getElementById('typed');
+    t.value='definitely not the answer';
+    t.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+    return document.getElementById('verdict').className;
+  })()`);
+  ok('typed: nonsense reads as wrong', /wrong/.test(wrong));
+  ok('typed: and lands on "missed"', await ev(`document.activeElement===document.querySelector('#gradeRow .g1')`));
+  await ev(`document.getElementById('btnQuit').click(); flush()`);
+  await nav();
+  ok('typed: the preference is remembered', await ev('S.typed===true'));
+  await ev(`document.getElementById('btnTyped').click(); flush()`);
 
   // --- hand-added cards
   await reset(); await nav();
