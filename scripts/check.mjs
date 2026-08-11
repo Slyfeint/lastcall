@@ -103,7 +103,7 @@ try {
      await ev(`[...document.querySelectorAll('.area')].every(h=>{
        let n=0,el=h.nextElementSibling;
        while(el&&el.classList.contains('tap')){n++;el=el.nextElementSibling;}
-       return n<=PER_AREA;
+       return n<=12;          // a literal, not PER_AREA — a check must not read its own answer
      })`));
 
   // --- search has to reach a deck the board is not currently showing
