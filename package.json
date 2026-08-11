@@ -15,8 +15,8 @@
     "test": "npm run lint:selftest && npm run lint && npm run check",
     "build:elements": "node scripts/build-elements.mjs",
     "build:manifest": "node scripts/build-manifest.mjs",
-    "build": "npm run build:otdb && npm run build:elements && npm run build:manifest",
-    "start": "node scripts/serve.mjs"
+    "start": "node scripts/serve.mjs",
+    "decks": "npm run build:otdb && npm run build:elements && npm run build:manifest"
   },
   "license": "MIT"
 }
