@@ -49,7 +49,7 @@ This blocks everything after it. Today a card's id is `'k' + index`, so regenera
 - [x] typed-answer mode with forgiving matching (accents, case, punctuation, articles, plurals, Jeopardy phrasing, one typo in a long word); says "close" rather than deciding for you when you gave half a two-part answer
 - [x] rabbit-hole mode: a Dive button per row drills that category alone, refilling instead of ending, without touching what is switched on; "Keep this card" copies it into your own cards so it outlives the deck
 - [x] board mode: 6 categories x 5 values, easiest clue cheapest, right pays and wrong costs like the show, and it never touches your schedule
-- [ ] session shapes that match a real night: six rounds, a picture round substitute, a final wager
+- [~] session shapes: six-round night with a running scorecard, and a final wager on the board (capped at what you hold). ~~picture round substitute~~ struck — there are no images in any deck, and inventing a stand-in round would be a different app, not a rehearsal of a real one
 - [ ] PWA: offline, installable, phone-first drilling
 - [ ] keyboard-first everywhere; audit focus order and reduced motion
 

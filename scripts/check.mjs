@@ -200,6 +200,45 @@ try {
   ok('quiz: clearing the board ends it', await visible('resultView'));
   ok('quiz: with the money on screen', await ev(`/^-?\\$[\\d,]+$/.test(document.getElementById('scoreNum').textContent)`));
 
+  // --- the wager
+  await reset(); await nav();
+  await ev(`document.getElementById('btnBoardGame').click();
+            (()=>{ for(let col=0;col<quiz.cats.length;col++) for(let row=0;row<5;row++){
+              const el=document.querySelector('.tile[data-cell="'+col+':'+row+'"]');
+              if(el && !el.disabled){ el.click(); flip(); answer(1); } } })()`);
+  ok('wager: a winning board offers one', await visible('wagerBox'));
+  ok('wager: prefilled with everything you have', await ev(`+document.getElementById('wagerAmount').value===quiz.score`));
+  const bank = await ev('quiz.score');
+  await ev(`document.getElementById('wagerAmount').value=${bank * 3};
+            document.getElementById('btnWager').click()`);
+  ok('wager: you cannot bet more than you hold', await ev(`quiz.bet===${bank}`));
+  ok('wager: it deals one more clue', await visible('stage'));
+  ok('wager: labelled as the wager', await ev(`/wager/i.test(document.getElementById('cardCat').textContent)`));
+  ok('wager: on a clue the board did not already use',
+     await ev(`!new Set(quiz.cats.flatMap(c=>c.cards)).has(Q[0])`));
+  await ev(`flip(); answer(0)`);
+  ok('wager: losing it costs the bet', await ev(`quiz.score===0`));
+  ok('wager: and it is not offered twice', !(await visible('wagerBox')));
+
+  // --- the whole night
+  await reset(); await nav();
+  await ev(`document.getElementById('btnNight').click()`);
+  ok('night: it starts on round one', await ev('night.round===0 && Q.length===10'));
+  const playRound = `(()=>{ while(document.getElementById('stage').classList.contains('live')){
+      if(!flipped) flip(); answer(1); } })()`;
+  await ev(playRound);
+  ok('night: a finished round shows the scorecard', await visible('resultView'));
+  ok('night: the round is banked', await ev('night.scores.length===1 && night.scores[0]===10'));
+  ok('night: and it says how many are left', await ev(`/5 to go/.test(document.getElementById('scoreLine').textContent)`));
+  ok('night: the button offers the next round', await ev(`document.getElementById('btnAgain').textContent==='Next round'`));
+  for (let i = 0; i < 5; i++) { await ev(`document.getElementById('btnAgain').click()`); await ev(playRound); }
+  ok('night: six rounds and it is over', await ev(`night.round===6 && night.scores.length===6`));
+  ok('night: totalled out of sixty', await ev(`/60/.test(document.getElementById('scoreNum').textContent)`));
+  ok('night: every round is listed', await ev(`document.querySelectorAll('#missedList li').length===6`));
+  ok('night: and it offers another night', await ev(`document.getElementById('btnAgain').textContent==='Play another night'`));
+  await ev(`document.getElementById('btnBack').click(); document.getElementById('btnRound').click()`);
+  ok('night: a plain round afterwards is not part of a night', await ev('night===null'));
+
   // --- rabbit holes
   await reset(); await nav();
   const diveId = await ev(`MANIFEST.find(d=>d.count>50).id`);

@@ -173,6 +173,11 @@ h1 em{font-style:normal;color:var(--amber)}
 .tile:hover:not(:disabled){background:var(--amber);color:var(--stout)}
 .tile:disabled{background:transparent;color:transparent;cursor:default;border-color:rgba(242,233,218,.06)}
 
+.wager{max-width:420px;margin:0 auto 22px;text-align:left}
+.wager-label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--foam-dim);margin-bottom:10px}
+.wager input{font-family:var(--mono)}
+
 /* ---------- round scoring ---------- */
 .tally{display:flex;gap:5px;margin-bottom:18px;flex-wrap:wrap}
 .pip{width:22px;height:22px;border:1.5px solid var(--rule)}
@@ -239,6 +244,7 @@ h1 em{font-style:normal;color:var(--amber)}
       <div class="actions">
         <button class="btn btn-go" id="btnDrill">Start drill</button>
         <button class="btn" id="btnRound">Run a round of 10</button>
+        <button class="btn" id="btnNight">Play the whole night</button>
         <button class="btn hidden" id="btnLeech">Sticking points</button>
         <button class="btn" id="btnBoardGame">Play a board</button>
         <button class="toggle" id="btnTyped" aria-pressed="false">Type the answers</button>
@@ -343,6 +349,13 @@ h1 em{font-style:normal;color:var(--amber)}
     <div class="result">
       <div class="score" id="scoreNum">0<small>/10</small></div>
       <p id="scoreLine">—</p>
+      <div class="wager hidden" id="wagerBox">
+        <div class="wager-label">One clue left. Bet what you can afford to lose.</div>
+        <div class="type-row">
+          <input id="wagerAmount" type="number" min="0" step="100" aria-label="Your wager">
+          <button class="btn btn-go" id="btnWager">Bet it</button>
+        </div>
+      </div>
       <div class="missed-head hidden" id="missedHead">Worth a second look</div>
       <ul class="missed" id="missedList"></ul>
       <div class="actions" style="justify-content:center">
@@ -742,6 +755,7 @@ function eligibleCats(){
 function startQuiz(){
   const picks=shuffle(eligibleCats()).slice(0,6);
   if(picks.length<2) return;
+  night=null;
   quiz={score:0,cats:picks.map(id=>({
     id, name:CAT_BY_ID[id]?.name||id,
     // easiest first, so the cheap clues really are the cheap ones
@@ -790,12 +804,40 @@ function scoreTile(right){
 function finishQuiz(){
   mode='quiz-done';
   $('scoreNum').innerHTML=(quiz.score<0?'-$':'$')+Math.abs(quiz.score).toLocaleString();
-  $('scoreLine').textContent = quiz.score>=quiz.cats.length*3000*0.6 ? 'A runaway. Nobody wants to play you.'
+  $('scoreLine').textContent = quiz.wagered ? (quiz.wonWager?'The wager came in.':'The wager did not come in.')
+    : quiz.score>=quiz.cats.length*3000*0.6 ? 'A runaway. Nobody wants to play you.'
     : quiz.score>0 ? 'In the black. That is a real score.'
     : 'In the red. The board took more than it gave.';
   $('missedHead').classList.add('hidden');
   $('missedList').innerHTML='';
+  // nothing to bet with, or you have already bet it
+  const canWager = quiz.score>0 && !quiz.wagered;
+  $('wagerBox').classList.toggle('hidden',!canWager);
+  if(canWager){ $('wagerAmount').max=quiz.score; $('wagerAmount').value=quiz.score; }
   show('resultView');
+}
+
+/* The last clue of the night: bet what you can afford to lose. Capped at what
+   you actually have, because betting money you do not hold is not a wager. */
+function startWager(){
+  const bet=Math.max(0,Math.min(quiz.score,Math.floor(+$('wagerAmount').value||0)));
+  quiz.bet=bet;
+  const used=new Set(quiz.cats.flatMap(c=>c.cards));
+  const act=activeCats();
+  const pool=DECK.filter(c=>act.includes(c.c)&&!used.has(c.id));
+  const hard=pool.filter(c=>(c.d||2)===3);
+  const pick=shuffle(hard.length?hard:pool)[0];
+  if(!pick){ quiz.wagered=true; quiz.wonWager=false; return finishQuiz(); }
+  Q=[pick.id]; idx=0; mode='wager'; diveCat=null;
+  $('tally').innerHTML=''; $('progFill').style.width='0';
+  show('stage'); paint();
+  $('cardCat').textContent=`The wager · $${bet.toLocaleString()}`;
+}
+
+function settleWager(right){
+  quiz.score += (right?1:-1)*quiz.bet;
+  quiz.wagered=true; quiz.wonWager=right;
+  finishQuiz();
 }
 
 function startDrill(){
@@ -834,9 +876,36 @@ function diveQueue(cid){
 function runDrill(cards){
   Q=cards.map(c=>c.id);
   if(!Q.length) return;
-  mode='drill'; idx=0; score=0; missed=[]; diveCat=null;
+  mode='drill'; idx=0; score=0; missed=[]; diveCat=null; night=null;
   $('tally').innerHTML='';
   show('stage'); paint();
+}
+
+/* Six rounds of ten is what a Thursday actually is. Rehearsing that shape —
+   the pacing, the running total, knowing you have three rounds left to make it
+   up — is different from drilling cards, which is why it exists. */
+const NIGHT_ROUNDS=6;
+let night=null;
+
+function startNight(){
+  night={round:0,scores:[]};
+  startRound();
+}
+
+function nightScorecard(){
+  const total=night.scores.reduce((a,b)=>a+b,0);
+  const outOf=night.scores.length*10;
+  $('scoreNum').innerHTML=`${total}<small>/${outOf}</small>`;
+  $('scoreLine').textContent = night.round>=NIGHT_ROUNDS
+    ? `That is the night. ${total} out of ${outOf}.`
+    : `Round ${night.round} of ${NIGHT_ROUNDS} done. ${NIGHT_ROUNDS-night.round} to go.`;
+  $('missedHead').classList.remove('hidden');
+  $('missedHead').textContent='Round by round';
+  $('missedList').innerHTML=night.scores.map((s,i)=>
+    `<li>Round ${i+1}<br><b>${s} out of 10</b></li>`).join('');
+  $('btnAgain').textContent = night.round>=NIGHT_ROUNDS ? 'Play another night' : 'Next round';
+  $('wagerBox').classList.add('hidden');
+  show('resultView');
 }
 
 function startRound(){
@@ -909,6 +978,7 @@ function answer(g){
   const c=BY_ID[Q[idx]];
   if(!c) return;                 // a keypress landing after the session ended
   if(mode==='quiz'){ scoreTile(!!g); return; }
+  if(mode==='wager'){ settleWager(!!g); return; }
   if(mode==='drill'){
     grade(c.id,g);
     if(g===1&&!isLeech(c.id)) Q.push(c.id);
@@ -922,7 +992,14 @@ function answer(g){
 
 function finish(){
   $('progFill').style.width='100%';
+  if(mode==='round'&&night){
+    night.round++; night.scores.push(score);
+    return nightScorecard();
+  }
   if(mode==='round'){
+    $('btnAgain').textContent='Another round';
+    $('wagerBox').classList.add('hidden');
+    $('missedHead').textContent='Worth a second look';
     $('scoreNum').innerHTML=`${score}<small>/${Q.length}</small>`;
     $('scoreLine').textContent = score===Q.length?'Clean sheet. Buy your own beer.'
       : score>=Q.length*0.7?'Solid. Your table would have kept those points.'
@@ -938,16 +1015,22 @@ function finish(){
 
 /* ---- wiring ---- */
 $('btnDrill').onclick=startDrill;
-$('btnRound').onclick=startRound;
+$('btnRound').onclick=()=>{ night=null; startRound(); };
+$('btnNight').onclick=startNight;
 $('btnFlip').onclick=flip;
 $('btnQuit').onclick=()=>{renderBoard();show('board');};
-$('btnAgain').onclick=()=>{ if(mode==='quiz-done') startQuiz(); else startRound(); };
+$('btnAgain').onclick=()=>{
+  if(mode==='quiz-done') return startQuiz();
+  if(night) return night.round>=NIGHT_ROUNDS ? startNight() : startRound();
+  startRound();
+};
 $('btnBack').onclick=()=>{renderBoard();show('board');};
 document.querySelectorAll('#gradeRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.g));
 document.querySelectorAll('#roundRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.r));
 $('btnLeech').onclick=startLeechDrill;
 $('btnBoardGame').onclick=startQuiz;
 $('btnQuizDone').onclick=finishQuiz;
+$('btnWager').onclick=startWager;
 $('deckSearch').oninput=()=>renderBoard();
 /* Decks come and go — the Jeopardy build is local and the shelf can be rebuilt.
    A card you copy here lives in your own progress and outlives all of that. */
