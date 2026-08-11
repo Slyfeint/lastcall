@@ -809,6 +809,7 @@ function submitTyped(){
 function answer(g){
   if(!flipped) return;
   const c=BY_ID[Q[idx]];
+  if(!c) return;                 // a keypress landing after the session ended
   if(mode==='drill'){
     grade(c.id,g);
     if(g===1&&!isLeech(c.id)) Q.push(c.id);

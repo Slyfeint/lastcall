@@ -181,7 +181,7 @@ try {
   ok('dive: and stays in the same category', await ev(`Q.every(id=>BY_ID[id].c===${JSON.stringify(diveId)})`));
 
   // keeping a card copies it somewhere a rebuilt deck cannot reach
-  const keptQ = await ev(`BY_ID[Q[idx]].q`);
+  const keptQ = await ev(`BY_ID[Q[idx]]?.q ?? null`);   // null if the refill above failed, so the rest still reports
   await ev(`document.getElementById('btnKeep').click()`);
   ok('keep: the card is copied into your own cards', await ev(`(S.user||[]).some(u=>u.q===${JSON.stringify(keptQ)})`));
   await ev(`document.getElementById('btnKeep').click()`);
