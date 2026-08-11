@@ -46,7 +46,7 @@ This blocks everything after it. Today a card's id is `'k' + index`, so regenera
 
 - [x] lazy category loading against the manifest, with a visible loading state
 - [x] category browser that works at 834 categories: search across name+blurb+area, grouped by area, a dozen rows per area until you ask for more
-- [ ] typed-answer mode with forgiving matching (articles, punctuation, "the", accents, plural) — the mode that actually prepares you for a real answer sheet
+- [x] typed-answer mode with forgiving matching (accents, case, punctuation, articles, plurals, Jeopardy phrasing, one typo in a long word); says "close" rather than deciding for you when you gave half a two-part answer
 - [ ] rabbit-hole mode: pick a topic, get an endless related run, with the option to bank a card into your own deck
 - [ ] Jeopardy-style board mode: 6 categories, 5 values, pick your way across
 - [ ] session shapes that match a real night: six rounds, a picture round substitute, a final wager
