@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Last Call — trivia drill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Karla:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --walnut:#241A14;
+  --stout:#150F0B;
+  --bar:#2E211A;
+  --amber:#E0A128;
+  --copper:#B4633A;
+  --foam:#F2E9DA;
+  --foam-dim:#A8998A;
+  --sage:#7E9478;
+  --oxblood:#9E4242;
+  --rule:rgba(242,233,218,.14);
+  --disp:'Antonio','Oswald','Arial Narrow',sans-serif;
+  --body:'Karla','Helvetica Neue',sans-serif;
+  --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--walnut);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 50% -10%, rgba(224,161,40,.09), transparent 60%),
+    repeating-linear-gradient(94deg, rgba(0,0,0,.16) 0 2px, transparent 2px 7px);
+  color:var(--foam);
+  font-family:var(--body);
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:940px;margin:0 auto;padding:28px 20px 80px}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+
+/* ---------- masthead ---------- */
+.mast{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+  border-bottom:2px solid var(--foam);padding-bottom:10px;margin-bottom:6px;flex-wrap:wrap}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber)}
+h1{font-family:var(--disp);font-weight:700;font-size:clamp(40px,9vw,68px);line-height:.86;
+  text-transform:uppercase;letter-spacing:-.01em}
+h1 em{font-style:normal;color:var(--amber)}
+.mast-right{font-family:var(--mono);font-size:11px;color:var(--foam-dim);text-align:right;letter-spacing:.06em}
+.mast-right b{color:var(--foam);font-weight:700}
+.subline{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--foam-dim);margin-bottom:30px}
+
+/* ---------- start panel ---------- */
+.panel{background:var(--stout);border:1px solid var(--rule);padding:22px 22px 20px;margin-bottom:26px}
+.panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.panel-title{font-family:var(--disp);font-size:22px;text-transform:uppercase;letter-spacing:.04em}
+.panel-note{font-family:var(--mono);font-size:10.5px;color:var(--foam-dim);letter-spacing:.05em}
+.actions{display:flex;gap:12px;flex-wrap:wrap}
+.btn{font-family:var(--disp);font-size:19px;text-transform:uppercase;letter-spacing:.05em;
+  padding:11px 22px;border:1.5px solid var(--foam);transition:background .14s,color .14s,border-color .14s}
+.btn:hover{background:var(--foam);color:var(--walnut)}
+.btn-go{background:var(--amber);border-color:var(--amber);color:var(--stout)}
+.btn-go:hover{background:var(--foam);border-color:var(--foam);color:var(--stout)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn:disabled:hover{background:none;color:inherit}
+.btn-sm{font-size:14px;padding:7px 14px;border-width:1px}
+
+/* ---------- tap list (signature) ---------- */
+.list-head{display:flex;align-items:baseline;justify-content:space-between;
+  border-bottom:1px solid var(--rule);padding-bottom:7px;margin-bottom:2px}
+.list-head span{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--foam-dim)}
+.tap{display:grid;grid-template-columns:26px 1fr 74px 54px;align-items:center;gap:14px;
+  padding:13px 6px 13px 0;border-bottom:1px solid var(--rule);cursor:pointer;
+  transition:background .12s;text-align:left;width:100%}
+.tap:hover{background:rgba(242,233,218,.04)}
+.tap.off{opacity:.34}
+.tap-check{width:16px;height:16px;border:1.5px solid var(--foam-dim);position:relative}
+.tap.on .tap-check{border-color:var(--amber);background:var(--amber)}
+.tap.on .tap-check::after{content:"";position:absolute;inset:3px 3px;border-left:2px solid var(--stout);
+  border-bottom:2px solid var(--stout);transform:rotate(-45deg) translate(1px,-1px);height:5px}
+.tap-name{font-family:var(--disp);font-size:21px;text-transform:uppercase;letter-spacing:.03em;line-height:1}
+.tap-style{font-family:var(--body);font-style:italic;font-size:12.5px;color:var(--foam-dim);margin-top:3px}
+.tap-bar{height:5px;background:rgba(242,233,218,.12);position:relative;overflow:hidden}
+.tap-fill{position:absolute;inset:0 auto 0 0;background:var(--amber);transition:width .5s ease}
+.tap-pct{font-family:var(--mono);font-size:10px;color:var(--foam-dim);margin-top:5px;letter-spacing:.04em}
+.tap-due{font-family:var(--disp);font-size:24px;text-align:right;line-height:1}
+.tap-due small{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--foam-dim);margin-top:2px}
+.tap-due.zero{color:var(--foam-dim);opacity:.5}
+
+/* ---------- card ---------- */
+.stage{display:none}
+.stage.live{display:block}
+.board{display:none}
+.board.live{display:block}
+.progress{height:3px;background:rgba(242,233,218,.12);margin-bottom:20px}
+.progress-fill{height:100%;background:var(--amber);transition:width .3s}
+.card{display:grid;grid-template-columns:52px 1fr;min-height:340px;
+  background:var(--bar);border:1px solid var(--rule);margin-bottom:18px}
+.handle{background:var(--stout);border-right:1px solid var(--rule);
+  display:flex;align-items:center;justify-content:center}
+.handle span{font-family:var(--disp);font-size:14px;text-transform:uppercase;letter-spacing:.28em;
+  writing-mode:vertical-rl;transform:rotate(180deg);color:var(--amber);white-space:nowrap}
+.face{padding:34px 30px;display:flex;flex-direction:column;justify-content:center;gap:22px}
+.q{font-family:var(--disp);font-weight:400;font-size:clamp(25px,4.6vw,38px);line-height:1.12;letter-spacing:.005em}
+.a-wrap{border-top:1px solid var(--rule);padding-top:20px}
+.a{font-family:var(--body);font-weight:600;font-size:clamp(20px,3.4vw,27px);color:var(--amber);line-height:1.25}
+.note{font-family:var(--body);font-style:italic;font-size:14px;color:var(--foam-dim);margin-top:9px;line-height:1.45}
+.hidden{display:none}
+.grades{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.grade{border:1.5px solid var(--rule);padding:14px 10px;text-align:center;transition:all .13s}
+.grade b{display:block;font-family:var(--disp);font-size:19px;text-transform:uppercase;letter-spacing:.04em}
+.grade i{display:block;font-family:var(--mono);font-style:normal;font-size:9.5px;letter-spacing:.12em;
+  color:var(--foam-dim);margin-top:4px}
+.g1:hover{border-color:var(--oxblood);background:rgba(158,66,66,.16)}
+.g2:hover{border-color:var(--sage);background:rgba(126,148,120,.16)}
+.g3:hover{border-color:var(--amber);background:rgba(224,161,40,.14)}
+.stage-foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:10px}
+.keys{font-family:var(--mono);font-size:10px;color:var(--foam-dim);letter-spacing:.05em}
+.keys kbd{border:1px solid var(--rule);padding:1px 5px;margin:0 1px;font-size:9.5px}
+
+/* ---------- round scoring ---------- */
+.tally{display:flex;gap:5px;margin-bottom:18px;flex-wrap:wrap}
+.pip{width:22px;height:22px;border:1.5px solid var(--rule)}
+.pip.hit{background:var(--sage);border-color:var(--sage)}
+.pip.miss{background:var(--oxblood);border-color:var(--oxblood)}
+.result{text-align:center;padding:46px 20px}
+.result .score{font-family:var(--disp);font-size:88px;line-height:.9;color:var(--amber)}
+.result .score small{font-size:30px;color:var(--foam-dim)}
+.result p{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--foam-dim);margin:14px 0 26px}
+.missed{text-align:left;max-width:560px;margin:0 auto 26px;border-top:1px solid var(--rule)}
+.missed li{list-style:none;padding:11px 0;border-bottom:1px solid var(--rule);font-size:14.5px}
+.missed li b{color:var(--amber);font-weight:600}
+.missed-head{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--foam-dim);padding:12px 0 0;text-align:left;max-width:560px;margin:0 auto}
+
+/* ---------- drawer ---------- */
+.drawer{border:1px solid var(--rule);background:var(--stout);margin-top:26px;padding:0 18px}
+.drawer summary{font-family:var(--disp);font-size:17px;text-transform:uppercase;letter-spacing:.05em;
+  padding:13px 0;cursor:pointer;color:var(--amber)}
+.drawer[open]{padding-bottom:18px}
+.drawer-note{font-family:var(--mono);font-size:10px;color:var(--foam-dim);letter-spacing:.05em;
+  line-height:1.7;margin-bottom:10px}
+.drawer textarea{width:100%;background:var(--walnut);color:var(--foam);border:1px solid var(--rule);
+  font-family:var(--mono);font-size:12px;padding:10px;resize:vertical;margin-bottom:12px}
+.drawer textarea:focus{outline:1px solid var(--amber)}
+#ioMsg{margin:12px 0 0;color:var(--sage)}
+
+.footnote{font-family:var(--mono);font-size:10px;color:var(--foam-dim);letter-spacing:.05em;
+  border-top:1px solid var(--rule);padding-top:14px;margin-top:34px;line-height:1.8}
+.footnote a{color:var(--copper)}
+.reset{color:var(--foam-dim);text-decoration:underline;font-family:var(--mono);font-size:10px;letter-spacing:.05em}
+.reset:hover{color:var(--oxblood)}
+
+@media(max-width:620px){
+  .tap{grid-template-columns:22px 1fr 58px;gap:10px}
+  .tap-due{display:none}
+  .list-head span:nth-child(3){display:none}
+  .face{padding:26px 20px}
+  .card{grid-template-columns:40px 1fr;min-height:300px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <div>
+      <div class="eyebrow">Thursdays · brewery · six rounds</div>
+      <h1>Last<em>Call</em></h1>
+    </div>
+    <div class="mast-right" id="mastStat">loading progress…</div>
+  </header>
+  <div class="subline" id="subline">the categories your table keeps punting on</div>
+
+  <!-- BOARD -->
+  <div class="board live" id="board">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Tonight's session</div>
+        <div class="panel-note" id="sessionNote"></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-go" id="btnDrill">Start drill</button>
+        <button class="btn" id="btnRound">Run a round of 10</button>
+        <button class="btn hidden" id="btnLeech">Sticking points</button>
+      </div>
+    </div>
+
+    <div class="list-head">
+      <span>On tap — tap a row to include or drop it</span>
+      <span>Mastery</span>
+      <span>Due</span>
+    </div>
+    <div id="tapList"></div>
+
+    <details class="drawer">
+      <summary>Your own cards &amp; backups</summary>
+      <p class="drawer-note">One card per line, fields separated by tabs: category, question, answer, optional note. A category you haven't used before becomes your own tap.</p>
+      <textarea id="tsv" rows="5" spellcheck="false" placeholder="Local&#9;Which street is the brewery on&#9;Mill Street&#9;They ask it every third week."></textarea>
+      <div class="actions">
+        <button class="btn btn-sm btn-go" id="btnImport">Add cards</button>
+        <button class="btn btn-sm" id="btnExport">Export backup</button>
+        <button class="btn btn-sm" id="btnRestore">Restore backup</button>
+        <input type="file" id="fileImport" accept="application/json,.json" class="hidden">
+      </div>
+      <div class="drawer-note" id="ioMsg"></div>
+    </details>
+
+    <div class="footnote">
+      Drill schedules each card by how well you knew it — missed cards come back today, easy ones vanish for weeks. A round of 10 is scored and changes nothing, for warming up in the car.<br>
+      Progress saves automatically. <a class="reset" id="btnReset">Clear all progress</a>
+    </div>
+  </div>
+
+  <!-- STAGE -->
+  <div class="stage" id="stage">
+    <div class="progress"><div class="progress-fill" id="progFill" style="width:0"></div></div>
+    <div class="tally" id="tally"></div>
+
+    <div class="card">
+      <div class="handle"><span id="cardCat">—</span></div>
+      <div class="face">
+        <div class="q" id="cardQ">—</div>
+        <div class="a-wrap hidden" id="aWrap">
+          <div class="a" id="cardA">—</div>
+          <div class="note hidden" id="cardNote"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="flipRow" class="actions">
+      <button class="btn btn-go" id="btnFlip" style="width:100%">Show answer</button>
+    </div>
+
+    <div class="grades hidden" id="gradeRow">
+      <button class="grade g1" data-g="1"><b>Missed</b><i>again today</i></button>
+      <button class="grade g2" data-g="2"><b>Got it</b><i>normal</i></button>
+      <button class="grade g3" data-g="3"><b>Easy</b><i>push it out</i></button>
+    </div>
+
+    <div class="grades hidden" id="roundRow">
+      <button class="grade g1" data-r="0" style="grid-column:span 1"><b>Missed</b><i>no point</i></button>
+      <button class="grade g2" data-r="1" style="grid-column:span 2"><b>Got it</b><i>+1</i></button>
+    </div>
+
+    <div class="stage-foot">
+      <div class="keys">
+        <kbd>space</kbd> flip · <kbd>1</kbd> missed · <kbd>2</kbd> got it · <kbd>3</kbd> easy · <kbd>esc</kbd> board
+      </div>
+      <button class="btn btn-sm" id="btnQuit">End session</button>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="stage" id="resultView">
+    <div class="result">
+      <div class="score" id="scoreNum">0<small>/10</small></div>
+      <p id="scoreLine">—</p>
+      <div class="missed-head hidden" id="missedHead">Worth a second look</div>
+      <ul class="missed" id="missedList"></ul>
+      <div class="actions" style="justify-content:center">
+        <button class="btn btn-go" id="btnAgain">Another round</button>
+        <button class="btn" id="btnBack">Back to the board</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="cards.js"></script>
+<script>
+/* ============ DATA ============ */
+const BUILT_CATS = [
+  {id:'geo',   name:'Capitals & Borders', style:'Who touches whom, and what the seat of government is called'},
+  {id:'sup',   name:'Superlatives',       style:'Longest, largest, deepest, driest — the question writer\u2019s favorite crutch'},
+  {id:'art',   name:'Paint & Stone',      style:'The canvas, the sculptor, the ear'},
+  {id:'clas',  name:'Composers & Opera',  style:'Dead Europeans your table will hand straight to you'},
+  {id:'lit',   name:'Books & Authors',    style:'Pen names, first lines, and who wrote the one everybody skipped'},
+  {id:'mus',   name:'Music Before 1980',  style:'Vinyl-era bands, labels, and the album that never left the chart'},
+  {id:'awd',   name:'Awards & Champions', style:'Best Picture, World Cups, banners in rafters'},
+  {id:'sci',   name:'Elements & Bodies',  style:'Symbols, planets, and the 206 bones'},
+  {id:'myth',  name:'Myth & Antiquity',   style:'Gods with two names and the volcano with one'},
+];
+
+const BUILTIN = typeof CARDS==='undefined' ? [] : CARDS;
+let DECK=[], CATS=[], BY_ID={}, CAT_BY_ID={};
+
+function buildDeck(){
+  DECK = BUILTIN.map((c,i)=>({...c,id:'k'+i}))
+    .concat((S.user||[]).map((c,i)=>({...c,id:'u'+i})));
+  BY_ID = Object.fromEntries(DECK.map(c=>[c.id,c]));
+  const own={};
+  (S.user||[]).forEach(c=>{ if(!own[c.c]) own[c.c]={id:c.c,name:c.cn,style:'Added by you'}; });
+  CATS = BUILT_CATS.concat(Object.values(own));
+  CAT_BY_ID = Object.fromEntries(CATS.map(c=>[c.id,c]));
+}
+
+/* ============ STORAGE ============ */
+const KEY='lastcall:v1';
+let mem=null, TESTING=false;
+const DEFAULT=()=>({sched:{},off:[],lastDay:null,streak:0,answered:0,user:[]});
+let S=DEFAULT();
+
+const Store = {
+  async get(k){
+    if(window.storage){ const r=await window.storage.get(k); return r?.value ?? null; }
+    return localStorage.getItem(k);
+  },
+  async set(k,v){
+    if(window.storage) return window.storage.set(k,v);
+    return localStorage.setItem(k,v);
+  }
+};
+
+async function load(){
+  try{
+    const raw=await Store.get(KEY);
+    if(raw) S={...DEFAULT(),...JSON.parse(raw)};
+  }catch(e){ if(mem) S={...DEFAULT(),...mem}; }
+}
+let saveTimer=null;
+function save(){
+  if(TESTING) return;
+  mem=JSON.parse(JSON.stringify(S));
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(flush,250);
+}
+async function flush(){
+  if(TESTING) return;
+  clearTimeout(saveTimer);
+  try{ await Store.set(KEY,JSON.stringify(S)); }catch(e){}
+}
+addEventListener('pagehide',flush);
+
+/* ============ SCHEDULING ============ */
+const DAY=86400000;
+const today=()=>Math.floor(Date.now()/DAY);
+
+const LEECH=5;
+const isLeech=id=>(S.sched[id]?.lapses||0)>=LEECH;
+
+function grade(id,g){
+  const s=S.sched[id]||{ivl:0,ease:2.5,due:0,reps:0,lapses:0};
+  if(g===1){ s.ease=Math.max(1.3,s.ease-0.2); s.ivl=0; s.due=today(); s.lapses=(s.lapses||0)+1; }
+  else if(g===2){ s.ivl = s.reps===0 ? 1 : Math.max(1,Math.round(s.ivl*s.ease)); s.due=today()+s.ivl; s.reps++; }
+  // ponytail: one "easy" clears the leech flag; no consecutive-success counter
+  else { s.ease=Math.min(3.2,s.ease+0.15); s.ivl = s.reps===0 ? 3 : Math.max(2,Math.round(s.ivl*s.ease*1.3)); s.due=today()+s.ivl; s.reps++; s.lapses=0; }
+  S.sched[id]=s;
+  S.answered=(S.answered||0)+1;
+  const d=today();
+  if(S.lastDay!==d){ S.streak = (S.lastDay===d-1)?(S.streak||0)+1:1; S.lastDay=d; }
+  save();
+}
+const activeCats=()=>CATS.filter(c=>!S.off.includes(c.id)).map(c=>c.id);
+const dueCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!isLeech(c.id)&&S.sched[c.id]&&S.sched[c.id].due<=today());
+const newCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!S.sched[c.id]);
+const leechCards=()=>{const act=activeCats();return DECK.filter(c=>act.includes(c.c)&&isLeech(c.id));};
+
+function mastery(cid){
+  const pool=DECK.filter(c=>c.c===cid);
+  let t=0;
+  pool.forEach(c=>{const s=S.sched[c.id]; if(s&&s.reps>0) t+=Math.min(s.ivl,21)/21;});
+  return pool.length? t/pool.length : 0;
+}
+
+/* ============ UI ============ */
+const $=id=>document.getElementById(id);
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;};
+
+function renderBoard(){
+  const act=activeCats();
+  const due=dueCards().filter(c=>act.includes(c.c)).length;
+  const fresh=newCards().filter(c=>act.includes(c.c)).length;
+  const leeches=leechCards().length;
+  const seen=Object.keys(S.sched).length;
+  const overall=Math.round(CATS.reduce((a,c)=>a+mastery(c.id),0)/CATS.length*100);
+
+  $('mastStat').innerHTML=
+    `<b>${overall}%</b> mastered · <b>${seen}</b>/${DECK.length} cards seen<br>`+
+    `<b>${S.streak||0}</b> day streak · <b>${S.answered||0}</b> answered all-time`;
+
+  $('sessionNote').textContent = due||fresh
+    ? `${due} due for review · ${fresh} you haven't seen · 20 per sitting`
+    : 'Nothing due. Run a round of 10, or turn a category back on.';
+  $('btnDrill').disabled = !(due||fresh);
+  $('btnLeech').classList.toggle('hidden',!leeches);
+  $('btnLeech').textContent=`Sticking points (${leeches})`;
+
+  $('tapList').innerHTML=CATS.map(c=>{
+    const on=!S.off.includes(c.id);
+    const m=Math.round(mastery(c.id)*100);
+    const d=dueCards(c.id).length+newCards(c.id).length;
+    return `<button class="tap ${on?'on':'off'}" data-cat="${c.id}" aria-pressed="${on}">
+      <span class="tap-check"></span>
+      <span>
+        <span class="tap-name">${c.name}</span>
+        <span class="tap-style">${c.style}</span>
+      </span>
+      <span>
+        <span class="tap-bar"><span class="tap-fill" style="width:${m}%"></span></span>
+        <span class="tap-pct">${m}% · ${DECK.filter(x=>x.c===c.id).length} cards</span>
+      </span>
+      <span class="tap-due ${d?'':'zero'}">${d}<small>ready</small></span>
+    </button>`;
+  }).join('');
+
+  document.querySelectorAll('.tap').forEach(el=>el.onclick=()=>{
+    const id=el.dataset.cat;
+    if(S.off.includes(id)) S.off=S.off.filter(x=>x!==id);
+    else if(S.off.length<CATS.length-1) S.off.push(id);
+    save(); renderBoard();
+  });
+}
+
+/* ---- session engine ---- */
+let Q=[],idx=0,mode='drill',flipped=false,score=0,missed=[];
+
+function show(view){
+  ['board','stage','resultView'].forEach(v=>$(v).classList.toggle('live',v===view));
+}
+
+function startDrill(){
+  const act=activeCats();
+  const d=shuffle(dueCards().filter(c=>act.includes(c.c)));
+  const n=shuffle(newCards().filter(c=>act.includes(c.c))).slice(0,Math.max(0,20-d.length));
+  runDrill([...d,...n].slice(0,20));
+}
+
+function startLeechDrill(){ runDrill(shuffle(leechCards())); }
+
+function runDrill(cards){
+  Q=cards.map(c=>c.id);
+  if(!Q.length) return;
+  mode='drill'; idx=0; score=0; missed=[];
+  $('tally').innerHTML='';
+  show('stage'); paint();
+}
+
+function startRound(){
+  const act=activeCats();
+  Q=shuffle(DECK.filter(c=>act.includes(c.c))).slice(0,10).map(c=>c.id);
+  mode='round'; idx=0; score=0; missed=[];
+  $('tally').innerHTML=Q.map(()=>'<span class="pip"></span>').join('');
+  show('stage'); paint();
+}
+
+function paint(){
+  if(idx>=Q.length) return finish();
+  const c=BY_ID[Q[idx]];
+  flipped=false;
+  $('cardCat').textContent=CAT_BY_ID[c.c].name;
+  $('cardQ').textContent=c.q;
+  $('cardA').textContent=c.a;
+  $('cardNote').textContent=c.n||'';
+  $('cardNote').classList.toggle('hidden',!c.n);
+  $('aWrap').classList.add('hidden');
+  $('flipRow').classList.remove('hidden');
+  $('gradeRow').classList.add('hidden');
+  $('roundRow').classList.add('hidden');
+  $('progFill').style.width=(idx/Q.length*100)+'%';
+  $('btnFlip').focus();
+}
+
+function flip(){
+  if(flipped) return;
+  flipped=true;
+  $('aWrap').classList.remove('hidden');
+  $('flipRow').classList.add('hidden');
+  $(mode==='drill'?'gradeRow':'roundRow').classList.remove('hidden');
+}
+
+function answer(g){
+  if(!flipped) return;
+  const c=BY_ID[Q[idx]];
+  if(mode==='drill'){
+    grade(c.id,g);
+    if(g===1&&!isLeech(c.id)) Q.push(c.id);
+  }else{
+    const pips=$('tally').children;
+    if(pips[idx]) pips[idx].className='pip '+(g?'hit':'miss');
+    if(g) score++; else missed.push(c);
+  }
+  idx++; paint();
+}
+
+function finish(){
+  $('progFill').style.width='100%';
+  if(mode==='round'){
+    $('scoreNum').innerHTML=`${score}<small>/${Q.length}</small>`;
+    $('scoreLine').textContent = score===Q.length?'Clean sheet. Buy your own beer.'
+      : score>=Q.length*0.7?'Solid. Your table would have kept those points.'
+      : score>=Q.length*0.4?'Middling — the drill is where this gets fixed.'
+      : 'Rough round. Good news: now you know where to aim.';
+    $('missedHead').classList.toggle('hidden',!missed.length);
+    $('missedList').innerHTML=missed.map(c=>`<li>${c.q}<br><b>${c.a}</b></li>`).join('');
+    show('resultView');
+  }else{
+    renderBoard(); show('board');
+  }
+}
+
+/* ---- wiring ---- */
+$('btnDrill').onclick=startDrill;
+$('btnRound').onclick=startRound;
+$('btnFlip').onclick=flip;
+$('btnQuit').onclick=()=>{renderBoard();show('board');};
+$('btnAgain').onclick=startRound;
+$('btnBack').onclick=()=>{renderBoard();show('board');};
+document.querySelectorAll('#gradeRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.g));
+document.querySelectorAll('#roundRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.r));
+$('btnLeech').onclick=startLeechDrill;
+$('btnReset').onclick=()=>{
+  if(!confirm('Clear every card\u2019s scheduling and your streak? Cards you added stay. This cannot be undone.')) return;
+  const user=S.user;
+  S=DEFAULT(); S.user=user; save(); buildDeck(); renderBoard();
+};
+
+/* ---- your own cards ---- */
+function parseTSV(text){
+  return text.trim().split(/\r?\n/)
+    .map(l=>l.split('\t').map(s=>s.trim()))
+    .filter(p=>p.length>=3&&p[0]&&p[1]&&p[2])
+    .map(p=>{
+      const k=p[0].toLowerCase();
+      const hit=BUILT_CATS.find(c=>c.id===k||c.name.toLowerCase()===k);
+      return {c:hit?hit.id:'u:'+k, cn:hit?hit.name:p[0], q:p[1], a:p[2], n:p[3]||''};
+    });
+}
+const ioMsg=t=>$('ioMsg').textContent=t;
+
+$('btnImport').onclick=()=>{
+  const rows=parseTSV($('tsv').value);
+  if(!rows.length) return ioMsg('Nothing added \u2014 each line needs category, question and answer separated by tabs.');
+  S.user=(S.user||[]).concat(rows);
+  save(); buildDeck(); renderBoard();
+  $('tsv').value='';
+  ioMsg(`Added ${rows.length} card${rows.length===1?'':'s'}.`);
+};
+$('btnExport').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));
+  a.download='lastcall-backup.json'; a.click(); URL.revokeObjectURL(a.href);
+};
+$('btnRestore').onclick=()=>$('fileImport').click();
+$('fileImport').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value='';
+  if(!f) return;
+  let data;
+  try{ data=JSON.parse(await f.text()); }
+  catch(err){ return ioMsg('That file is not a Last Call backup.'); }
+  if(!data||typeof data.sched!=='object') return ioMsg('That file is not a Last Call backup.');
+  S={...DEFAULT(),...data};
+  save(); buildDeck(); renderBoard();
+  ioMsg('Progress restored.');
+};
+
+document.addEventListener('keydown',e=>{
+  if(!$('stage').classList.contains('live')) return;
+  if(e.key===' '||e.key==='Enter'){ e.preventDefault(); if(!flipped) flip(); }
+  else if(e.key==='Escape'){ renderBoard(); show('board'); }
+  else if(flipped&&['1','2','3'].includes(e.key)){
+    if(mode==='drill') answer(+e.key);
+    else if(e.key!=='3') answer(e.key==='2'?1:0);
+  }
+});
+
+/* ---- self test: open with ?selftest ---- */
+function selftest(){
+  TESTING=true;
+  const out=[]; let bad=0;
+  const ok=(name,cond)=>{ if(!cond) bad++; out.push((cond?'PASS  ':'FAIL  ')+name); };
+
+  const rows=parseTSV('Local\tWhere\tMill Street\tnote here\r\nSuperlatives\tQ2\tA2\r\n\r\nbad row\r\n');
+  ok('TSV: CRLF + 3-field row + junk filtered, 2 kept', rows.length===2);
+  ok('TSV: note survives CRLF', rows[0].n==='note here');
+  ok('TSV: unknown category becomes own tap', rows[0].c==='u:local'&&rows[0].cn==='Local');
+  ok('TSV: known category name maps to built-in id', rows[1].c==='sup');
+  ok('TSV: missing note is empty, not undefined', rows[1].n==='');
+
+  S=DEFAULT(); buildDeck();
+  const firstId=DECK[0].id, deckLen=DECK.length;
+  S.user=[rows[0]]; buildDeck();
+  ok('deck: built-in ids do not move when a card is added', DECK[0].id===firstId&&DECK.length===deckLen+1);
+  ok('deck: user card is addressable', BY_ID['u0']&&BY_ID['u0'].q==='Where');
+  ok('deck: own category appears', CATS.some(c=>c.id==='u:local'));
+
+  const t=DECK[0].id;
+  for(let i=0;i<4;i++) grade(t,1);
+  ok('leech: 4 misses is not yet a leech', !isLeech(t));
+  ok('leech: 4-miss card is still due', dueCards().some(c=>c.id===t));
+  grade(t,1);
+  ok('leech: 5 misses flags it', isLeech(t));
+  ok('leech: leech is pulled out of the due queue', !dueCards().some(c=>c.id===t));
+  ok('leech: leech shows in its own pile', leechCards().some(c=>c.id===t));
+  grade(t,3);
+  ok('leech: an easy clears the flag', !isLeech(t));
+
+  document.body.innerHTML=`<pre style="font:13px/1.7 var(--mono);padding:30px;white-space:pre-wrap">`+
+    out.join('\n')+`\n\n${bad?bad+' FAILED':'all '+out.length+' passed'}</pre>`;
+}
+
+(async()=>{
+  if(location.search.includes('selftest')) return selftest();
+  await load(); buildDeck(); renderBoard();
+  if(!BUILTIN.length) $('sessionNote').textContent='cards.js did not load — keep it next to this file.';
+})();
+</script>
+</body>
+</html>

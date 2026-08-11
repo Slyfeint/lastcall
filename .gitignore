@@ -1,0 +1,8 @@
+node_modules/
+.cache/
+.vercel/
+prof/
+*.log
+
+# Jeopardy clues are not ours to redistribute — built locally, never committed, never deployed
+public/decks/jeopardy/
