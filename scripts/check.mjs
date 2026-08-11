@@ -162,6 +162,40 @@ try {
   ok('migrate: it is packed, not an object', await ev(`Array.isArray(S.sched[cardId(BUILTIN[7].q)]||null)`));
   ok('migrate: unrelated state is untouched', await ev('S.streak===3 && S.answered===11'));
 
+  // --- rabbit holes
+  await reset(); await nav();
+  const diveId = await ev(`MANIFEST.find(d=>d.count>50).id`);
+  const onBefore = await ev('JSON.stringify(S.on||[])');
+  await ev(`document.querySelector('.dive[data-dive=${JSON.stringify(diveId)}]').click()`);
+  await sleep(900);
+  ok('dive: it starts a session', await visible('stage'));
+  ok('dive: on a deck it had to fetch first', await ev(`LOADED.has(${JSON.stringify(diveId)})`));
+  ok('dive: every card in the queue is from that one category',
+     await ev(`Q.every(id=>BY_ID[id].c===${JSON.stringify(diveId)})`));
+  ok('dive: it did not change what is switched on for tonight', await ev('JSON.stringify(S.on||[])') === onBefore);
+
+  // the hole has no bottom: exhaust the queue and it refills
+  const qLen = await ev('Q.length');
+  await ev(`(()=>{ for(let i=0;i<${qLen + 3};i++){ if(!flipped) flip(); answer(2); } })()`);
+  ok('dive: the queue refills instead of ending', await visible('stage'));
+  ok('dive: and stays in the same category', await ev(`Q.every(id=>BY_ID[id].c===${JSON.stringify(diveId)})`));
+
+  // keeping a card copies it somewhere a rebuilt deck cannot reach
+  const keptQ = await ev(`BY_ID[Q[idx]].q`);
+  await ev(`document.getElementById('btnKeep').click()`);
+  ok('keep: the card is copied into your own cards', await ev(`(S.user||[]).some(u=>u.q===${JSON.stringify(keptQ)})`));
+  await ev(`document.getElementById('btnKeep').click()`);
+  ok('keep: pressing it twice does not duplicate', await ev(`(S.user||[]).filter(u=>u.q===${JSON.stringify(keptQ)}).length===1`));
+  await ev(`document.getElementById('btnQuit').click(); flush()`);
+  await nav();
+  ok('keep: it survives a reload', await ev(`(S.user||[]).some(u=>u.q===${JSON.stringify(keptQ)})`));
+  ok('keep: under a category of its own', await ev(`CATS.some(c=>c.id==='u:kept')`));
+
+  // an ordinary drill must not inherit the endless behaviour
+  await reset(); await nav();
+  await ev(`document.getElementById('btnDrill').click()`);
+  ok('drill: a normal session is not a rabbit hole', await ev('diveCat===null'));
+
   // --- typing the answer
   await reset(); await nav();
   ok('typed: off by default, the flip button is what you get', await ev(`!document.getElementById('flipRow').classList.contains('hidden')`));

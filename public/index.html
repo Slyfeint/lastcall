@@ -101,6 +101,12 @@ h1 em{font-style:normal;color:var(--amber)}
 .more{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--copper);
   padding:11px 0;border-bottom:1px solid var(--rule);width:100%;text-align:left}
 .more:hover{color:var(--amber)}
+.tap-row{display:flex;align-items:stretch}
+.tap-row .tap{flex:1}
+.dive{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--foam-dim);border-bottom:1px solid var(--rule);border-left:1px solid var(--rule);
+  padding:0 12px;white-space:nowrap}
+.dive:hover{color:var(--stout);background:var(--amber);border-color:var(--amber)}
 .tap.busy{opacity:.6;cursor:progress}
 .tap.busy .tap-fill{width:100%!important;background:var(--copper);animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.35}}
@@ -299,7 +305,10 @@ h1 em{font-style:normal;color:var(--amber)}
       <div class="keys">
         <kbd>space</kbd> flip · <kbd>1</kbd> missed · <kbd>2</kbd> got it · <kbd>3</kbd> easy · <kbd>esc</kbd> board
       </div>
-      <button class="btn btn-sm" id="btnQuit">End session</button>
+      <span>
+        <button class="btn btn-sm" id="btnKeep">Keep this card</button>
+        <button class="btn btn-sm" id="btnQuit">End session</button>
+      </span>
     </div>
   </div>
 
@@ -636,7 +645,8 @@ function renderBoard(){
     const ranked=[...all.filter(c=>catOn(c.id)),...all.filter(c=>!catOn(c.id))];
     const capped=filter||expanded.has(a)?ranked:ranked.slice(0,PER_AREA);
     rows.push(`<div class="area">${esc(a)} <span style="opacity:.6">· ${all.length}</span></div>`);
-    for(const c of capped) rows.push(tapRow(c));
+    for(const c of capped) rows.push(
+      `<div class="tap-row">${tapRow(c)}<button class="dive" data-dive="${esc(c.id)}" title="Drill only this, without changing what is switched on">Dive</button></div>`);
     if(capped.length<ranked.length)
       rows.push(`<button class="more" data-area="${esc(a)}">show all ${ranked.length} in ${esc(a)}</button>`);
   }
@@ -644,6 +654,7 @@ function renderBoard(){
   $('tapList').innerHTML=rows.join('');
 
   document.querySelectorAll('.more').forEach(el=>el.onclick=()=>{ expanded.add(el.dataset.area); renderBoard(); });
+  document.querySelectorAll('.dive').forEach(el=>el.onclick=()=>startDive(el.dataset.dive));
 
   function tapRow(c){
     const on=catOn(c.id);
@@ -683,7 +694,7 @@ function renderBoard(){
 }
 
 /* ---- session engine ---- */
-let Q=[],idx=0,mode='drill',flipped=false,score=0,missed=[],lastVerdict=null;
+let Q=[],idx=0,mode='drill',flipped=false,score=0,missed=[],lastVerdict=null,diveCat=null;
 
 function show(view){
   ['board','stage','resultView'].forEach(v=>$(v).classList.toggle('live',v===view));
@@ -698,10 +709,34 @@ function startDrill(){
 
 function startLeechDrill(){ runDrill(shuffle(leechCards())); }
 
+/* A rabbit hole: one category, however long you want to stay in it, without
+   disturbing what is switched on for tonight. Due cards first, then ones you
+   have never seen, then everything else — and when it runs out it comes round
+   again, because that is the point. */
+async function startDive(cid){
+  if(!LOADED.has(cid)&&MANIFEST.some(d=>d.id===cid)){
+    loading.add(cid); renderBoard();
+    await ensureDecks([cid]);
+    loading.delete(cid);
+  }
+  const pool=diveQueue(cid);
+  if(!pool.length){ renderBoard(); return; }
+  runDrill(pool);
+  diveCat=cid;                                 // runDrill clears it; a dive keeps it
+  $('cardCat').textContent=CAT_BY_ID[cid]?.name||cid;
+}
+
+function diveQueue(cid){
+  const due=shuffle(dueCards(cid));
+  const fresh=shuffle(newCards(cid));
+  const rest=shuffle(DECK.filter(c=>c.c===cid&&!due.includes(c)&&!fresh.includes(c)));
+  return [...due,...fresh,...rest].slice(0,40);
+}
+
 function runDrill(cards){
   Q=cards.map(c=>c.id);
   if(!Q.length) return;
-  mode='drill'; idx=0; score=0; missed=[];
+  mode='drill'; idx=0; score=0; missed=[]; diveCat=null;
   $('tally').innerHTML='';
   show('stage'); paint();
 }
@@ -709,13 +744,18 @@ function runDrill(cards){
 function startRound(){
   const act=activeCats();
   Q=shuffle(DECK.filter(c=>act.includes(c.c))).slice(0,10).map(c=>c.id);
-  mode='round'; idx=0; score=0; missed=[];
+  mode='round'; idx=0; score=0; missed=[]; diveCat=null;
   $('tally').innerHTML=Q.map(()=>'<span class="pip"></span>').join('');
   show('stage'); paint();
 }
 
 function paint(){
-  if(idx>=Q.length) return finish();
+  if(idx>=Q.length){
+    if(!diveCat) return finish();
+    const more=diveQueue(diveCat);            // the hole has no bottom
+    if(!more.length) return finish();
+    Q=more.map(c=>c.id); idx=0;
+  }
   const c=BY_ID[Q[idx]];
   flipped=false;
   $('cardCat').textContent=CAT_BY_ID[c.c].name;
@@ -807,6 +847,19 @@ document.querySelectorAll('#gradeRow .grade').forEach(b=>b.onclick=()=>answer(+b
 document.querySelectorAll('#roundRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.r));
 $('btnLeech').onclick=startLeechDrill;
 $('deckSearch').oninput=()=>renderBoard();
+/* Decks come and go — the Jeopardy build is local and the shelf can be rebuilt.
+   A card you copy here lives in your own progress and outlives all of that. */
+$('btnKeep').onclick=()=>{
+  const c=BY_ID[Q[idx]];
+  if(!c) return;
+  const already=(S.user||[]).some(u=>cardId(u.q)===c.id);
+  if(!already){
+    S.user=(S.user||[]).concat([{c:'u:kept',cn:'Kept',q:c.q,a:c.a,n:c.n||''}]);
+    save(); buildDeck();
+  }
+  $('btnKeep').textContent=already?'Already kept':'Kept';
+  setTimeout(()=>{ $('btnKeep').textContent='Keep this card'; },1400);
+};
 $('btnSubmit').onclick=submitTyped;
 $('typed').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); submitTyped(); } };
 $('btnTyped').onclick=()=>{
