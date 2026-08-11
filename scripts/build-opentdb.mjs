@@ -87,13 +87,6 @@ for (const [id, name, style, area] of Object.values(CATS)) {
   writeFileSync(`${OUT}/${id}.json`, JSON.stringify({ id, name, style, area, source: 'opentdb', cards }));
   manifest.push({ id, name, style, area, count: cards.length, file: `decks/${id}.json` });
 }
-manifest.sort((a, b) => a.area.localeCompare(b.area) || a.name.localeCompare(b.name));
-writeFileSync(`${OUT}/manifest.json`, JSON.stringify({
-  generated: 'run scripts/build-opentdb.mjs to regenerate',
-  attribution: 'Questions from the Open Trivia Database, CC BY-SA 4.0, https://opentdb.com/',
-  decks: manifest,
-}, null, 1));
-
 console.log(`read ${read}, kept ${kept} across ${manifest.length} decks`);
 console.log(`dropped: ${Object.entries(dropped).map(([k, v]) => `${v} ${k}`).join(', ')}`);
 for (const [why, n] of Object.entries(rejected).sort((a, b) => b[1] - a[1])) console.log(`  ${n} rejected — ${why}`);

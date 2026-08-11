@@ -35,11 +35,12 @@ This blocks everything after it. Today a card's id is `'k' + index`, so regenera
 
 ## Phase 2 — deck pipeline
 
-- [ ] `scripts/build-opentdb.mjs`: session token, paged, 5s throttle, HTML entities decoded, deduped, mapped onto our category taxonomy, written to `public/decks/*.json` + `manifest.json`
-- [ ] `scripts/lint-decks.mjs`: fails on decaying answers, empty fields, duplicate questions, answers longer than the question, mojibake. Wired into `npm test`
-- [ ] `scripts/build-facts.mjs`: evergreen generated cards from Wikidata (capitals, borders, elements, planets, anatomy, mountains, rivers) with the source id on each card
-- [ ] `scripts/build-jeopardy.mjs`: download the 76MB TSV to `.cache/`, filter media clues and decaying answers, bucket by category, write to the gitignored local deck dir. Documented as personal-use
-- [ ] card provenance: every card carries its source, so the UI can say where a question came from and the SA obligation is honoured
+- [x] `scripts/fetch-opentdb.mjs` + `scripts/build-opentdb.mjs`: session token, paged, 5s throttle, base64 to dodge entity soup, deduped, mapped onto a 23-category taxonomy with areas
+- [x] `scripts/lint-decks.mjs`: fails on decaying answers, empty fields, duplicate questions, swapped fields, mojibake, orphaned multiple-choice. `--selftest` proves every rule fires. Exported so importers reject at the door
+- [x] `scripts/build-manifest.mjs`: one manifest over whatever decks exist, so each builder writes only its own file
+- [~] ~~`scripts/build-facts.mjs` from Wikidata~~ — struck. Capitals/borders/rivers would have duplicated the house Geography deck for real accuracy risk, and REST Countries v3 is deprecated. Replaced by `scripts/build-elements.mjs`: all 118 symbols from an embedded table that fails the build if it is wrong. Revisit only if a category turns out to be thin
+- [x] `scripts/build-jeopardy.mjs`: 76MB TSV to `.cache/`, clue and response swapped the right way round, media and decaying clues filtered, 802 decks, gitignored and never deployed
+- [x] card provenance: every card carries `s` (otdb / table / jarchive / house) and the manifest carries the licence per source
 
 ## Phase 3 — the app for a big deck
 
