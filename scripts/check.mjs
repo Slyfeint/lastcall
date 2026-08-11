@@ -18,7 +18,11 @@ const CHROME = [
 ].find(p => existsSync(p));
 if (!CHROME) { console.error('No Chrome found.'); process.exit(2); }
 
-const TARGET = process.argv[2] || pathToFileURL(resolve('public/index.html')).href;
+/* The app fetches deck files, which file:// forbids, so the local run is served
+   over http the same way the deployed one is. */
+const SERVE_PORT = 8145;
+const server = process.argv[2] ? null : spawn(process.execPath, ['scripts/serve.mjs', String(SERVE_PORT)], { stdio: 'ignore' });
+const TARGET = process.argv[2] || `http://127.0.0.1:${SERVE_PORT}/`;
 const PORT = 9444;
 const profile = mkdtempSync(join(tmpdir(), 'lastcall-'));
 const chrome = spawn(CHROME, [
@@ -90,6 +94,25 @@ try {
   ok('ids: the graded card keeps its id across the reload',
      await ev(`DECK.some(c=>c.id===${JSON.stringify(graded)})`));
 
+  // --- the shelf: decks are listed from the manifest and fetched only on demand
+  await reset(); await nav();
+  ok('shelf: the manifest was read', await ev('MANIFEST.length >= 20'));
+  ok('shelf: nothing extra was fetched at boot', await ev('LOADED.size === 0'));
+  ok('shelf: every deck on the shelf shows a tap', await ev('document.querySelectorAll(".tap").length === CATS.length'));
+  ok('shelf: areas group the board', await ev('document.querySelectorAll(".area").length >= 5'));
+  const shelfDeck = await ev('MANIFEST.find(d=>d.count>50).id');
+  const before = await ev('DECK.length');
+  await ev(`document.querySelector('.tap[data-cat=${JSON.stringify(shelfDeck)}]').click()`);
+  await sleep(700);
+  ok('shelf: switching a deck on fetches it', await ev(`LOADED.has(${JSON.stringify(shelfDeck)})`));
+  ok('shelf: its cards joined the deck', await ev(`DECK.length > ${before}`));
+  ok('shelf: and its cards carry its category', await ev(`DECK.some(c=>c.c===${JSON.stringify(shelfDeck)})`));
+  ok('shelf: the choice is remembered', await ev(`(S.on||[]).includes(${JSON.stringify(shelfDeck)})`));
+  await ev('flush()'); await nav();
+  ok('shelf: a deck switched on is refetched after a reload', await ev(`LOADED.has(${JSON.stringify(shelfDeck)}) && DECK.length > ${before}`));
+  await ev(`document.querySelector('.tap[data-cat=${JSON.stringify(shelfDeck)}]').click()`);
+  ok('shelf: switching it off drops it from the drill', await ev(`!activeCats().includes(${JSON.stringify(shelfDeck)})`));
+
   // --- v1 progress in the wild must migrate on load
   await reset();
   await ev(`localStorage.setItem('lastcall:v1', JSON.stringify({sched:{k7:{ivl:9,ease:2.5,due:0,reps:2,lapses:0}},off:[],lastDay:null,streak:3,answered:11}));
@@ -132,6 +155,7 @@ try {
 } finally {
   ws.close();
   chrome.kill();
+  server?.kill();
   try { rmSync(profile, { recursive: true, force: true }); } catch {}
 }
 

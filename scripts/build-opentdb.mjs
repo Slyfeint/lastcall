@@ -16,7 +16,7 @@ if (!existsSync(CACHE)) { console.error(`No cache. Run: node scripts/fetch-opent
 /* Their category ids, given our voice. Areas group the board so 30 taps stay
    browsable. Anything not listed here is skipped rather than dumped in a bin. */
 const CATS = {
-  9:  ['gen',   'General Knowledge',   'The stuff that shows up in every round', 'House'],
+  9:  ['gen',   'General Knowledge',   'The stuff that shows up in every round', 'General'],
   10: ['books', 'Books',               'Novels, poets, and who wrote which one', 'Page'],
   11: ['film',  'Film',                'Directors, casts, and the line everyone quotes', 'Screen'],
   12: ['music', 'Music',               'Every era, not just the vinyl one', 'Sound'],

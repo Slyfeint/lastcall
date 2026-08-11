@@ -44,7 +44,7 @@ This blocks everything after it. Today a card's id is `'k' + index`, so regenera
 
 ## Phase 3 — the app for a big deck
 
-- [ ] lazy category loading against the manifest, with a visible loading state
+- [x] lazy category loading against the manifest, with a visible loading state
 - [ ] category browser that works at 40+ categories: search, group by area, subcategory rabbit holes
 - [ ] typed-answer mode with forgiving matching (articles, punctuation, "the", accents, plural) — the mode that actually prepares you for a real answer sheet
 - [ ] rabbit-hole mode: pick a topic, get an endless related run, with the option to bank a card into your own deck

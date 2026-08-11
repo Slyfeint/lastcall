@@ -10,10 +10,19 @@
    "id": "gen",
    "name": "General Knowledge",
    "style": "The stuff that shows up in every round",
-   "area": "House",
+   "area": "General",
    "source": "opentdb",
    "count": 336,
    "file": "decks/gen.json"
+  },
+  {
+   "id": "art2",
+   "name": "Art & Design",
+   "style": "Movements, buildings, and the people behind them",
+   "area": "Page",
+   "source": "opentdb",
+   "count": 40,
+   "file": "decks/art2.json"
   },
   {
    "id": "books",
@@ -34,6 +43,24 @@
    "file": "decks/board.json"
   },
   {
+   "id": "sport",
+   "name": "Sports",
+   "style": "Rules, records, and who lifted what",
+   "area": "Play",
+   "source": "opentdb",
+   "count": 132,
+   "file": "decks/sport.json"
+  },
+  {
+   "id": "wheels",
+   "name": "Vehicles",
+   "style": "Cars, planes, ships, and the engines in them",
+   "area": "Play",
+   "source": "opentdb",
+   "count": 34,
+   "file": "decks/wheels.json"
+  },
+  {
    "id": "games",
    "name": "Video Games",
    "style": "Consoles, studios, and the one with the plumber",
@@ -41,6 +68,15 @@
    "source": "opentdb",
    "count": 917,
    "file": "decks/games.json"
+  },
+  {
+   "id": "fauna",
+   "name": "Animals",
+   "style": "Species, collective nouns, and the odd beak",
+   "area": "Science",
+   "source": "opentdb",
+   "count": 38,
+   "file": "decks/fauna.json"
   },
   {
    "id": "comp",
@@ -79,6 +115,42 @@
    "file": "decks/elem.json"
   },
   {
+   "id": "anime",
+   "name": "Anime & Manga",
+   "style": "Studios, series, and the long-running ones",
+   "area": "Screen",
+   "source": "opentdb",
+   "count": 159,
+   "file": "decks/anime.json"
+  },
+  {
+   "id": "toons",
+   "name": "Cartoons",
+   "style": "Animation, from Saturday morning onward",
+   "area": "Screen",
+   "source": "opentdb",
+   "count": 88,
+   "file": "decks/toons.json"
+  },
+  {
+   "id": "fame",
+   "name": "Celebrities",
+   "style": "Names, faces, and the tabloid decades",
+   "area": "Screen",
+   "source": "opentdb",
+   "count": 44,
+   "file": "decks/fame.json"
+  },
+  {
+   "id": "comics",
+   "name": "Comics",
+   "style": "Panels, publishers, and secret identities",
+   "area": "Screen",
+   "source": "opentdb",
+   "count": 45,
+   "file": "decks/comics.json"
+  },
+  {
    "id": "film",
    "name": "Film",
    "style": "Directors, casts, and the line everyone quotes",
@@ -104,6 +176,42 @@
    "source": "opentdb",
    "count": 386,
    "file": "decks/music.json"
+  },
+  {
+   "id": "world",
+   "name": "Geography",
+   "style": "Beyond capitals — flags, rivers, borders",
+   "area": "World",
+   "source": "opentdb",
+   "count": 272,
+   "file": "decks/world.json"
+  },
+  {
+   "id": "hist",
+   "name": "History",
+   "style": "Dates, treaties, and who was on which side",
+   "area": "World",
+   "source": "opentdb",
+   "count": 322,
+   "file": "decks/hist.json"
+  },
+  {
+   "id": "pol",
+   "name": "Politics",
+   "style": "Offices, parties, and how a bill moves",
+   "area": "World",
+   "source": "opentdb",
+   "count": 31,
+   "file": "decks/pol.json"
+  },
+  {
+   "id": "mythos",
+   "name": "World Mythology",
+   "style": "Gods beyond the Greek and Roman set",
+   "area": "World",
+   "source": "opentdb",
+   "count": 36,
+   "file": "decks/mythos.json"
   }
  ]
 }

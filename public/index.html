@@ -75,7 +75,8 @@ h1 em{font-style:normal;color:var(--amber)}
   padding:13px 6px 13px 0;border-bottom:1px solid var(--rule);cursor:pointer;
   transition:background .12s;text-align:left;width:100%}
 .tap:hover{background:rgba(242,233,218,.04)}
-.tap.off{opacity:.34}
+.tap.off{opacity:.52}
+.tap.off .tap-name{color:var(--foam-dim)}
 .tap-check{width:16px;height:16px;border:1.5px solid var(--foam-dim);position:relative}
 .tap.on .tap-check{border-color:var(--amber);background:var(--amber)}
 .tap.on .tap-check::after{content:"";position:absolute;inset:3px 3px;border-left:2px solid var(--stout);
@@ -88,6 +89,12 @@ h1 em{font-style:normal;color:var(--amber)}
 .tap-due{font-family:var(--disp);font-size:24px;text-align:right;line-height:1}
 .tap-due small{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--foam-dim);margin-top:2px}
 .tap-due.zero{color:var(--foam-dim);opacity:.5}
+.area{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--copper);padding:26px 0 7px;border-bottom:1px solid var(--rule)}
+.area:first-child{padding-top:10px}
+.tap.busy{opacity:.6;cursor:progress}
+.tap.busy .tap-fill{width:100%!important;background:var(--copper);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
 
 /* ---------- card ---------- */
 .stage{display:none}
@@ -275,15 +282,15 @@ h1 em{font-style:normal;color:var(--amber)}
 <script>
 /* ============ DATA ============ */
 const BUILT_CATS = [
-  {id:'geo',   name:'Capitals & Borders', style:'Who touches whom, and what the seat of government is called'},
-  {id:'sup',   name:'Superlatives',       style:'Longest, largest, deepest, driest — the question writer\u2019s favorite crutch'},
-  {id:'art',   name:'Paint & Stone',      style:'The canvas, the sculptor, the ear'},
-  {id:'clas',  name:'Composers & Opera',  style:'Dead Europeans your table will hand straight to you'},
-  {id:'lit',   name:'Books & Authors',    style:'Pen names, first lines, and who wrote the one everybody skipped'},
-  {id:'mus',   name:'Music Before 1980',  style:'Vinyl-era bands, labels, and the album that never left the chart'},
-  {id:'awd',   name:'Awards & Champions', style:'Best Picture, World Cups, banners in rafters'},
-  {id:'sci',   name:'Elements & Bodies',  style:'Symbols, planets, and the 206 bones'},
-  {id:'myth',  name:'Myth & Antiquity',   style:'Gods with two names and the volcano with one'},
+  {id:'geo',   name:'Capitals & Borders', style:'Who touches whom, and what the seat of government is called', area:'The House Deck'},
+  {id:'sup',   name:'Superlatives',       style:'Longest, largest, deepest, driest — the question writer\u2019s favorite crutch', area:'The House Deck'},
+  {id:'art',   name:'Paint & Stone',      style:'The canvas, the sculptor, the ear', area:'The House Deck'},
+  {id:'clas',  name:'Composers & Opera',  style:'Dead Europeans your table will hand straight to you', area:'The House Deck'},
+  {id:'lit',   name:'Books & Authors',    style:'Pen names, first lines, and who wrote the one everybody skipped', area:'The House Deck'},
+  {id:'mus',   name:'Music Before 1980',  style:'Vinyl-era bands, labels, and the album that never left the chart', area:'The House Deck'},
+  {id:'awd',   name:'Awards & Champions', style:'Best Picture, World Cups, banners in rafters', area:'The House Deck'},
+  {id:'sci',   name:'Elements & Bodies',  style:'Symbols, planets, and the 206 bones', area:'The House Deck'},
+  {id:'myth',  name:'Myth & Antiquity',   style:'Gods with two names and the volcano with one', area:'The House Deck'},
 ];
 
 const BUILTIN = typeof CARDS==='undefined' ? [] : CARDS;
@@ -305,10 +312,48 @@ function hash53(str,seed=0){
 }
 const cardId=q=>hash53(q.toLowerCase().replace(/[^a-z0-9]+/g,'')).toString(36);
 
+/* The house deck ships with the page. Everything else is a file per category,
+   fetched the moment you switch it on and not before — 4,000 cards should not
+   be the price of opening the board. */
+let MANIFEST=[];
+const LOADED=new Map();        // deck id -> its cards
+let deckTrouble='';
+
+async function loadManifest(){
+  try{
+    const r=await fetch('decks/manifest.json');
+    if(!r.ok) throw new Error(r.status);
+    MANIFEST=(await r.json()).decks||[];
+  }catch(e){
+    // fetch() is blocked on file://, so this is the normal case when someone
+    // opens the file straight off disk. The house deck still works.
+    deckTrouble='Opened from disk, so only the house deck is here. Run npm start, or use the hosted site.';
+  }
+}
+
+async function ensureDecks(ids){
+  const need=ids.filter(id=>!LOADED.has(id)&&MANIFEST.some(d=>d.id===id));
+  if(!need.length) return;
+  await Promise.all(need.map(async id=>{
+    const d=MANIFEST.find(x=>x.id===id);
+    try{
+      const r=await fetch(d.file);
+      if(!r.ok) throw new Error(r.status);
+      LOADED.set(id,(await r.json()).cards.map(c=>({...c,c:id})));
+    }catch(e){ LOADED.set(id,[]); deckTrouble=`Could not load ${d.name}.`; }
+  }));
+  buildDeck();
+}
+
+const isHouseCat=id=>BUILT_CATS.some(c=>c.id===id)||id.startsWith('u:');
+/* House categories are on unless switched off; fetched decks are off until
+   switched on, so a new deck never silently joins tonight's drill. */
+const catOn=id=>isHouseCat(id) ? !S.off.includes(id) : (S.on||[]).includes(id);
+
 function buildDeck(){
   const seen=new Set();
   DECK=[];
-  for(const c of BUILTIN.concat(S.user||[])){
+  for(const c of BUILTIN.concat(...LOADED.values(), S.user||[])){
     const id=cardId(c.q);
     if(seen.has(id)) continue;   // same question from two sources is one card
     seen.add(id);
@@ -316,15 +361,15 @@ function buildDeck(){
   }
   BY_ID = Object.fromEntries(DECK.map(c=>[c.id,c]));
   const own={};
-  (S.user||[]).forEach(c=>{ if(!own[c.c]) own[c.c]={id:c.c,name:c.cn,style:'Added by you'}; });
-  CATS = BUILT_CATS.concat(Object.values(own));
+  (S.user||[]).forEach(c=>{ if(!own[c.c]) own[c.c]={id:c.c,name:c.cn,style:'Added by you',area:'Yours'}; });
+  CATS = BUILT_CATS.concat(MANIFEST.map(d=>({...d,loaded:LOADED.has(d.id)})),Object.values(own));
   CAT_BY_ID = Object.fromEntries(CATS.map(c=>[c.id,c]));
 }
 
 /* ============ STORAGE ============ */
 const KEY='lastcall:v1';
 let mem=null, TESTING=false;
-const DEFAULT=()=>({v:3,sched:{},off:[],lastDay:null,streak:0,answered:0,user:[]});
+const DEFAULT=()=>({v:3,sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[]});
 let S=DEFAULT();
 
 const Store = {
@@ -410,7 +455,7 @@ function grade(id,g){
   if(S.lastDay!==d){ S.streak = (S.lastDay===d-1)?(S.streak||0)+1:1; S.lastDay=d; }
   save();
 }
-const activeCats=()=>CATS.filter(c=>!S.off.includes(c.id)).map(c=>c.id);
+const activeCats=()=>CATS.filter(c=>catOn(c.id)).map(c=>c.id);
 const dueCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!isLeech(c.id)&&S.sched[c.id]&&S.sched[c.id][DUE]<=today());
 const newCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!S.sched[c.id]);
 const leechCards=()=>{const act=activeCats();return DECK.filter(c=>act.includes(c.c)&&isLeech(c.id));};
@@ -424,6 +469,8 @@ function mastery(cid){
 
 /* ============ UI ============ */
 const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+const loading=new Set();
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;};
 
 function renderBoard(){
@@ -432,41 +479,62 @@ function renderBoard(){
   const fresh=newCards().filter(c=>act.includes(c.c)).length;
   const leeches=leechCards().length;
   const seen=DECK.filter(c=>S.sched[c.id]).length;   // orphaned schedules stay in storage, off the count
-  const overall=Math.round(CATS.reduce((a,c)=>a+mastery(c.id),0)/CATS.length*100);
+  // mastery is only meaningful over categories whose cards are actually here
+  const live=CATS.filter(c=>DECK.some(x=>x.c===c.id));
+  const overall=live.length?Math.round(live.reduce((a,c)=>a+mastery(c.id),0)/live.length*100):0;
+  const shelf=CATS.reduce((n,c)=>n+(DECK.some(x=>x.c===c.id)?0:(c.count||0)),0);
 
   $('mastStat').innerHTML=
     `<b>${overall}%</b> mastered · <b>${seen}</b>/${DECK.length} cards seen<br>`+
     `<b>${S.streak||0}</b> day streak · <b>${S.answered||0}</b> answered all-time`;
 
+  if(deckTrouble) $('subline').textContent=deckTrouble;
+  else if(shelf) $('subline').textContent=`${shelf.toLocaleString()} more cards on the shelf — switch a category on`;
+
   $('sessionNote').textContent = due||fresh
     ? `${due} due for review · ${fresh} you haven't seen · 20 per sitting`
-    : 'Nothing due. Run a round of 10, or turn a category back on.';
+    : 'Nothing due. Run a round of 10, or switch on a category.';
   $('btnDrill').disabled = !(due||fresh);
   $('btnLeech').classList.toggle('hidden',!leeches);
   $('btnLeech').textContent=`Sticking points (${leeches})`;
 
-  $('tapList').innerHTML=CATS.map(c=>{
-    const on=!S.off.includes(c.id);
+  const rows=[];
+  let area=null;
+  for(const c of CATS){
+    if(c.area!==area){ area=c.area; rows.push(`<div class="area">${esc(area||'')}</div>`); }
+    const on=catOn(c.id);
+    const here=DECK.filter(x=>x.c===c.id).length;   // 0 until the deck is fetched
+    const count=here||c.count||0;
     const m=Math.round(mastery(c.id)*100);
     const d=dueCards(c.id).length+newCards(c.id).length;
-    return `<button class="tap ${on?'on':'off'}" data-cat="${c.id}" aria-pressed="${on}">
+    const busy=loading.has(c.id);
+    rows.push(`<button class="tap ${on?'on':'off'}${busy?' busy':''}" data-cat="${c.id}" aria-pressed="${on}">
       <span class="tap-check"></span>
       <span>
-        <span class="tap-name">${c.name}</span>
-        <span class="tap-style">${c.style}</span>
+        <span class="tap-name">${esc(c.name)}</span>
+        <span class="tap-style">${esc(c.style)}</span>
       </span>
       <span>
-        <span class="tap-bar"><span class="tap-fill" style="width:${m}%"></span></span>
-        <span class="tap-pct">${m}% · ${DECK.filter(x=>x.c===c.id).length} cards</span>
+        <span class="tap-bar"><span class="tap-fill" style="width:${here?m:0}%"></span></span>
+        <span class="tap-pct">${busy?'loading…':`${here?m+'% · ':''}${count} cards`}</span>
       </span>
-      <span class="tap-due ${d?'':'zero'}">${d}<small>ready</small></span>
-    </button>`;
-  }).join('');
+      <span class="tap-due ${d?'':'zero'}">${here?d:'·'}<small>${here?'ready':'off'}</small></span>
+    </button>`);
+  }
+  $('tapList').innerHTML=rows.join('');
 
-  document.querySelectorAll('.tap').forEach(el=>el.onclick=()=>{
+  document.querySelectorAll('.tap').forEach(el=>el.onclick=async()=>{
     const id=el.dataset.cat;
-    if(S.off.includes(id)) S.off=S.off.filter(x=>x!==id);
-    else if(S.off.length<CATS.length-1) S.off.push(id);
+    if(isHouseCat(id)){
+      if(S.off.includes(id)) S.off=S.off.filter(x=>x!==id); else S.off.push(id);
+    }else{
+      S.on=S.on||[];
+      if(S.on.includes(id)) S.on=S.on.filter(x=>x!==id);
+      else{
+        S.on.push(id);
+        if(!LOADED.has(id)){ loading.add(id); renderBoard(); await ensureDecks([id]); loading.delete(id); }
+      }
+    }
     save(); renderBoard();
   });
 }
@@ -679,7 +747,12 @@ function selftest(){
 
 (async()=>{
   if(location.search.includes('selftest')) return selftest();
-  await load(); buildDeck(); renderBoard();
+  await load();
+  buildDeck(); renderBoard();                  // the house deck paints immediately
+  await loadManifest();
+  buildDeck(); renderBoard();                  // then the shelf appears
+  await ensureDecks(S.on||[]);                 // then whatever was switched on last time
+  renderBoard();
   if(!BUILTIN.length) $('sessionNote').textContent='cards.js did not load — keep it next to this file.';
 })();
 </script>
