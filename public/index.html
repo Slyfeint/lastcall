@@ -159,6 +159,20 @@ h1 em{font-style:normal;color:var(--amber)}
   color:var(--foam-dim);border:1px solid var(--rule);padding:7px 12px}
 .toggle[aria-pressed="true"]{color:var(--stout);background:var(--amber);border-color:var(--amber)}
 
+/* ---------- the board game ---------- */
+.quiz-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:16px}
+.quiz-score{font-family:var(--disp);font-size:44px;line-height:1;color:var(--amber)}
+.quiz-score.neg{color:var(--oxblood)}
+.grid-wrap{overflow-x:auto}                 /* six columns will not fit a phone */
+.grid{display:grid;gap:4px;min-width:640px}
+.grid-cat{background:var(--stout);border:1px solid var(--rule);padding:12px 8px;min-height:74px;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-family:var(--disp);font-size:14px;line-height:1.05;text-transform:uppercase;letter-spacing:.03em}
+.tile{background:var(--bar);border:1px solid var(--rule);padding:18px 8px;
+  font-family:var(--disp);font-size:26px;color:var(--amber);transition:background .12s}
+.tile:hover:not(:disabled){background:var(--amber);color:var(--stout)}
+.tile:disabled{background:transparent;color:transparent;cursor:default;border-color:rgba(242,233,218,.06)}
+
 /* ---------- round scoring ---------- */
 .tally{display:flex;gap:5px;margin-bottom:18px;flex-wrap:wrap}
 .pip{width:22px;height:22px;border:1.5px solid var(--rule)}
@@ -226,6 +240,7 @@ h1 em{font-style:normal;color:var(--amber)}
         <button class="btn btn-go" id="btnDrill">Start drill</button>
         <button class="btn" id="btnRound">Run a round of 10</button>
         <button class="btn hidden" id="btnLeech">Sticking points</button>
+        <button class="btn" id="btnBoardGame">Play a board</button>
         <button class="toggle" id="btnTyped" aria-pressed="false">Type the answers</button>
       </div>
     </div>
@@ -310,6 +325,17 @@ h1 em{font-style:normal;color:var(--amber)}
         <button class="btn btn-sm" id="btnQuit">End session</button>
       </span>
     </div>
+  </div>
+
+  <!-- THE BOARD GAME -->
+  <div class="stage" id="quizView">
+    <div class="quiz-head">
+      <div class="quiz-score" id="quizScore">$0</div>
+      <div>
+        <button class="btn btn-sm" id="btnQuizDone">End the board</button>
+      </div>
+    </div>
+    <div class="grid-wrap"><div class="grid" id="quizGrid"></div></div>
   </div>
 
   <!-- RESULT -->
@@ -624,6 +650,7 @@ function renderBoard(){
     ? `${due} due for review · ${fresh} you haven't seen · 20 per sitting`
     : 'Nothing due. Run a round of 10, or switch on a category.';
   $('btnDrill').disabled = !(due||fresh);
+  $('btnBoardGame').disabled = eligibleCats().length<2;
   $('btnLeech').classList.toggle('hidden',!leeches);
   $('btnLeech').textContent=`Sticking points (${leeches})`;
 
@@ -697,7 +724,78 @@ function renderBoard(){
 let Q=[],idx=0,mode='drill',flipped=false,score=0,missed=[],lastVerdict=null,diveCat=null;
 
 function show(view){
-  ['board','stage','resultView'].forEach(v=>$(v).classList.toggle('live',v===view));
+  ['board','stage','resultView','quizView'].forEach(v=>$(v).classList.toggle('live',v===view));
+}
+
+/* ============ THE BOARD GAME ============ */
+/* Six categories, five clues each, cheap ones first. Scored like the show —
+   a wrong answer costs you — and, like a round of ten, it is a game: it does
+   not touch the schedule you have built up. */
+const VALUES=[200,400,600,800,1000];
+let quiz=null;
+
+function eligibleCats(){
+  const act=activeCats();
+  return act.filter(id=>DECK.filter(c=>c.c===id).length>=VALUES.length);
+}
+
+function startQuiz(){
+  const picks=shuffle(eligibleCats()).slice(0,6);
+  if(picks.length<2) return;
+  quiz={score:0,cats:picks.map(id=>({
+    id, name:CAT_BY_ID[id]?.name||id,
+    // easiest first, so the cheap clues really are the cheap ones
+    cards:shuffle(DECK.filter(c=>c.c===id)).sort((a,b)=>(a.d||2)-(b.d||2)).slice(0,VALUES.length).map(c=>c.id),
+  })),spent:new Set()};
+  paintQuiz();
+  show('quizView');
+}
+
+function paintQuiz(){
+  $('quizScore').textContent=(quiz.score<0?'-$':'$')+Math.abs(quiz.score).toLocaleString();
+  $('quizScore').classList.toggle('neg',quiz.score<0);
+  const g=$('quizGrid');
+  g.style.gridTemplateColumns=`repeat(${quiz.cats.length},1fr)`;
+  const cells=quiz.cats.map(c=>`<div class="grid-cat">${esc(c.name)}</div>`);
+  VALUES.forEach((v,row)=>{
+    quiz.cats.forEach((c,col)=>{
+      const key=col+':'+row;
+      const done=quiz.spent.has(key);
+      cells.push(`<button class="tile" data-cell="${key}" ${done?'disabled':''}>$${v}</button>`);
+    });
+  });
+  g.innerHTML=cells.join('');
+  g.querySelectorAll('.tile').forEach(el=>el.onclick=()=>pickTile(el.dataset.cell));
+}
+
+function pickTile(key){
+  if(quiz.spent.has(key)) return;
+  const [col,row]=key.split(':').map(Number);
+  quiz.cell=key;
+  Q=[quiz.cats[col].cards[row]]; idx=0; mode='quiz'; diveCat=null;
+  $('tally').innerHTML='';
+  $('progFill').style.width='0';
+  show('stage'); paint();
+  $('cardCat').textContent=`${quiz.cats[col].name} · $${VALUES[row]}`;
+}
+
+function scoreTile(right){
+  const [,row]=quiz.cell.split(':').map(Number);
+  quiz.score += (right?1:-1)*VALUES[row];
+  quiz.spent.add(quiz.cell);
+  if(quiz.spent.size>=quiz.cats.length*VALUES.length) return finishQuiz();
+  paintQuiz(); show('quizView');
+}
+
+function finishQuiz(){
+  mode='quiz-done';
+  $('scoreNum').innerHTML=(quiz.score<0?'-$':'$')+Math.abs(quiz.score).toLocaleString();
+  $('scoreLine').textContent = quiz.score>=quiz.cats.length*3000*0.6 ? 'A runaway. Nobody wants to play you.'
+    : quiz.score>0 ? 'In the black. That is a real score.'
+    : 'In the red. The board took more than it gave.';
+  $('missedHead').classList.add('hidden');
+  $('missedList').innerHTML='';
+  show('resultView');
 }
 
 function startDrill(){
@@ -810,6 +908,7 @@ function answer(g){
   if(!flipped) return;
   const c=BY_ID[Q[idx]];
   if(!c) return;                 // a keypress landing after the session ended
+  if(mode==='quiz'){ scoreTile(!!g); return; }
   if(mode==='drill'){
     grade(c.id,g);
     if(g===1&&!isLeech(c.id)) Q.push(c.id);
@@ -842,11 +941,13 @@ $('btnDrill').onclick=startDrill;
 $('btnRound').onclick=startRound;
 $('btnFlip').onclick=flip;
 $('btnQuit').onclick=()=>{renderBoard();show('board');};
-$('btnAgain').onclick=startRound;
+$('btnAgain').onclick=()=>{ if(mode==='quiz-done') startQuiz(); else startRound(); };
 $('btnBack').onclick=()=>{renderBoard();show('board');};
 document.querySelectorAll('#gradeRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.g));
 document.querySelectorAll('#roundRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.r));
 $('btnLeech').onclick=startLeechDrill;
+$('btnBoardGame').onclick=startQuiz;
+$('btnQuizDone').onclick=finishQuiz;
 $('deckSearch').oninput=()=>renderBoard();
 /* Decks come and go — the Jeopardy build is local and the shelf can be rebuilt.
    A card you copy here lives in your own progress and outlives all of that. */
@@ -918,7 +1019,10 @@ document.addEventListener('keydown',e=>{
   const typing=el=>/^(INPUT|TEXTAREA)$/.test(el?.tagName||'');
   if(typing(e.target)||typing(document.activeElement)) return;
   if(e.key===' '||e.key==='Enter'){ e.preventDefault(); if(!flipped) flip(); }
-  else if(e.key==='Escape'){ renderBoard(); show('board'); }
+  else if(e.key==='Escape'){
+    if(mode==='quiz'){ paintQuiz(); show('quizView'); }   // back to the grid, not out of the game
+    else { renderBoard(); show('board'); }
+  }
   else if(flipped&&['1','2','3'].includes(e.key)){
     if(mode==='drill') answer(+e.key);
     else if(e.key!=='3') answer(e.key==='2'?1:0);

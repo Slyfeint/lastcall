@@ -162,6 +162,44 @@ try {
   ok('migrate: it is packed, not an object', await ev(`Array.isArray(S.sched[cardId(BUILTIN[7].q)]||null)`));
   ok('migrate: unrelated state is untouched', await ev('S.streak===3 && S.answered===11'));
 
+  // --- the board game
+  await reset(); await nav();
+  await ev(`document.getElementById('btnBoardGame').click()`);
+  ok('quiz: the grid appears', await visible('quizView'));
+  ok('quiz: six categories across', await ev('quiz.cats.length===6'));
+  ok('quiz: five clues down each', await ev('quiz.cats.every(c=>c.cards.length===5)'));
+  ok('quiz: no clue is used twice on one board',
+     await ev('new Set(quiz.cats.flatMap(c=>c.cards)).size===30'));
+  ok('quiz: the cheap clues really are the easier ones',
+     await ev(`quiz.cats.every(c=>{const d=c.cards.map(id=>BY_ID[id].d||2);
+       return d.every((x,i)=>i===0||d[i-1]<=x);})`));
+  ok('quiz: thirty tiles on the board', await ev(`document.querySelectorAll('.tile').length===30`));
+  ok('quiz: the score starts at nothing', await ev(`document.getElementById('quizScore').textContent==='$0'`));
+
+  const schedBefore = await ev('JSON.stringify(S.sched)');
+  await ev(`document.querySelector('.tile[data-cell="0:0"]').click()`);
+  ok('quiz: picking a tile shows the clue', await visible('stage'));
+  ok('quiz: labelled with its category and value',
+     await ev(`/\\$200$/.test(document.getElementById('cardCat').textContent)`));
+  await ev(`flip(); answer(1)`);
+  ok('quiz: a right answer pays its value', await ev(`quiz.score===200`));
+  ok('quiz: and returns to the grid', await visible('quizView'));
+  ok('quiz: the tile is spent', await ev(`document.querySelector('.tile[data-cell="0:0"]').disabled===true`));
+
+  await ev(`document.querySelector('.tile[data-cell="1:4"]').click(); flip(); answer(0)`);
+  ok('quiz: a wrong answer costs its value, like the show', await ev(`quiz.score===200-1000`));
+  ok('quiz: a negative score reads as negative', await ev(`document.getElementById('quizScore').textContent==='-$800'`));
+
+  ok('quiz: it is a game, so it leaves your schedule alone', await ev('JSON.stringify(S.sched)') === schedBefore);
+
+  // clear the rest of the board and it should finish on its own
+  await ev(`(()=>{ for(let col=0;col<quiz.cats.length;col++) for(let row=0;row<5;row++){
+      const el=document.querySelector('.tile[data-cell="'+col+':'+row+'"]');
+      if(el && !el.disabled){ el.click(); flip(); answer(1); }
+    } })()`);
+  ok('quiz: clearing the board ends it', await visible('resultView'));
+  ok('quiz: with the money on screen', await ev(`/^-?\\$[\\d,]+$/.test(document.getElementById('scoreNum').textContent)`));
+
   // --- rabbit holes
   await reset(); await nav();
   const diveId = await ev(`MANIFEST.find(d=>d.count>50).id`);
