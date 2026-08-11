@@ -1,0 +1,38 @@
+{
+ "generated": "run scripts/build-opentdb.mjs to regenerate",
+ "attribution": "Questions from the Open Trivia Database, CC BY-SA 4.0, https://opentdb.com/",
+ "decks": [
+  {
+   "id": "gen",
+   "name": "General Knowledge",
+   "style": "The stuff that shows up in every round",
+   "area": "House",
+   "count": 337,
+   "file": "decks/gen.json"
+  },
+  {
+   "id": "books",
+   "name": "Books",
+   "style": "Novels, poets, and who wrote which one",
+   "area": "Page",
+   "count": 85,
+   "file": "decks/books.json"
+  },
+  {
+   "id": "film",
+   "name": "Film",
+   "style": "Directors, casts, and the line everyone quotes",
+   "area": "Screen",
+   "count": 255,
+   "file": "decks/film.json"
+  },
+  {
+   "id": "music",
+   "name": "Music",
+   "style": "Every era, not just the vinyl one",
+   "area": "Sound",
+   "count": 263,
+   "file": "decks/music.json"
+  }
+ ]
+}

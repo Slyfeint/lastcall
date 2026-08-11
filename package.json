@@ -5,9 +5,14 @@
   "description": "Spaced-repetition drill for pub trivia",
   "type": "module",
   "scripts": {
+    "fetch:otdb": "node scripts/fetch-opentdb.mjs",
+    "build:otdb": "node scripts/build-opentdb.mjs",
+    "build:jeopardy": "node scripts/build-jeopardy.mjs",
+    "lint": "node scripts/lint-decks.mjs",
+    "lint:selftest": "node scripts/lint-decks.mjs --selftest",
     "check": "node scripts/check.mjs",
     "check:live": "node scripts/check.mjs https://lastcall-kappa.vercel.app/",
-    "test": "npm run check"
+    "test": "npm run lint:selftest && npm run lint && npm run check"
   },
   "license": "MIT"
 }
