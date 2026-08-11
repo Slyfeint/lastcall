@@ -162,6 +162,63 @@ try {
   ok('migrate: it is packed, not an object', await ev(`Array.isArray(S.sched[cardId(BUILTIN[7].q)]||null)`));
   ok('migrate: unrelated state is untouched', await ev('S.streak===3 && S.answered===11'));
 
+  // --- the form guide
+  await reset(); await nav();
+  await ev(`document.getElementById('btnStats').click()`);
+  ok('stats: it opens', await visible('statsView'));
+  ok('stats: readiness is zero before you have drilled anything', await ev(`readiness().pct===0`));
+  ok('stats: and says so rather than showing an empty chart',
+     await ev(`document.querySelectorAll('#statsBody .empty').length>=3`));
+  await ev(`document.getElementById('btnStatsBack').click()`);
+
+  // drill a handful, right and wrong, then read the numbers back
+  await ev(`(()=>{ document.getElementById('btnDrill').click();
+    for(let i=0;i<8;i++){ if(!flipped) flip(); answer(i<6?2:1); } })()`);
+  await ev(`document.getElementById('btnQuit').click(); document.getElementById('btnStats').click()`);
+  ok('stats: the session was logged', await ev('(S.hist||[]).length===1'));
+  ok('stats: with what was asked and what was right', await ev(`S.hist[0][2]>=8 && S.hist[0][3]===6`));
+  ok('stats: per-category accuracy was recorded', await ev(`Object.values(S.acc).reduce((n,a)=>n+a[1],0)>=8`));
+
+  const r = await ev('readiness()');
+  ok('stats: readiness counts unseen cards as unknown', r.pct < 100 && r.seen < r.pool);
+  ok('stats: and the arithmetic on screen matches the number',
+     await ev(`(()=>{const t=document.getElementById('statsBody').textContent;
+       const r=readiness();
+       return t.includes(r.pool.toLocaleString()) && t.includes(r.seen.toLocaleString())
+              && new RegExp('= '+r.pct+'%').test(t);})()`));
+  ok('stats: a freshly reviewed card is recalled at about 0.9 after one interval',
+     await ev(`(()=>{const id=DECK[0].id; S.sched[id]=[10,2.5,today()+10,3,0];
+       const now=recall(id); S.sched[id]=[10,2.5,today(),3,0];
+       const due=recall(id); return now===1 && Math.abs(due-0.9)<0.001;})()`));
+
+  ok('stats: the category bars are drawn', await ev(`document.querySelectorAll('#statsBody .mark').length>=1`));
+  ok('stats: weakest category first', await ev(`(()=>{
+    const vals=[...document.querySelectorAll('#statsBody .mark')].map(m=>+m.getAttribute('width'));
+    return vals.every((v,i)=>i===0||vals[i-1]<=v);})()`));
+  ok('stats: every mark carries its own tooltip', await ev(`
+    [...document.querySelectorAll('#statsBody .mark, #statsBody .cell')].every(m=>m.querySelector('title'))`));
+  ok('stats: the heatmap has a square for today', await ev(`
+    [...document.querySelectorAll('#statsBody .cell title')].some(t=>t.textContent.includes(new Date(today()*86400000).toISOString().slice(0,10)))`));
+  ok('stats: charts are inline svg, not images', await ev(`
+    document.querySelectorAll('#statsBody svg').length>=2 && document.querySelectorAll('#statsBody img').length===0`));
+  ok('stats: each chart describes itself for a screen reader', await ev(`
+    [...document.querySelectorAll('#statsBody svg')].every(s=>(s.getAttribute('aria-label')||'').length>20)`));
+  ok('stats: one hue only — no chart invents a second colour', await ev(`(()=>{
+    const fills=new Set([...document.querySelectorAll('#statsBody [fill]')].map(e=>e.getAttribute('fill')));
+    return [...fills].every(f=>/^var\\(--heat-\\d\\)$/.test(f)||f==='transparent');})()`));
+
+  // a second session with a different shape has to move the line, not the bars only
+  await ev(`document.getElementById('btnStatsBack').click();
+            (()=>{ document.getElementById('btnRound').click();
+              for(let i=0;i<10;i++){ if(!flipped) flip(); answer(1); } })();
+            document.getElementById('btnBack').click();
+            document.getElementById('btnStats').click()`);
+  ok('stats: a round counts toward accuracy too', await ev('(S.hist||[]).length===2'));
+  ok('stats: two sessions draw the line', await ev(`!!document.querySelector('#statsBody .line')`));
+  ok('stats: but only the drill moved the schedule',
+     await ev(`Object.keys(S.sched).length <= 9`));
+  await ev(`document.getElementById('btnStatsBack').click()`);
+
   // --- reachable by keyboard, readable by everyone
   await reset(); await nav();
   const unnamed = await ev(`(()=>{

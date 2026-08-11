@@ -165,6 +165,48 @@ h1 em{font-style:normal;color:var(--amber)}
   color:var(--foam-dim);border:1px solid var(--rule);padding:7px 12px}
 .toggle[aria-pressed="true"]{color:var(--stout);background:var(--amber);border-color:var(--amber)}
 
+/* ---------- the form guide ---------- */
+/* One hue for everything: these charts show magnitude, not identity, so the
+   colour never has to tell two things apart. Steps computed for even OKLab
+   lightness and validated against the walnut surface. */
+:root{
+  --heat-0:#2E211A;
+  --heat-1:#6E4F1C;
+  --heat-2:#89631F;
+  --heat-3:#A57722;
+  --heat-4:#C28C25;
+  --heat-5:#E0A128;
+}
+.hero{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:6px}
+.hero-num{font-family:var(--disp);font-size:88px;line-height:.85;color:var(--amber)}
+.hero-num small{font-size:30px;color:var(--foam-dim)}
+.hero-say{font-family:var(--body);font-size:15px;color:var(--foam-dim);max-width:420px;line-height:1.45}
+.meter{height:8px;background:rgba(242,233,218,.12);margin:16px 0 8px;position:relative}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--amber)}
+.sums{font-family:var(--mono);font-size:10.5px;color:var(--foam-dim);letter-spacing:.05em;line-height:1.9}
+.sums b{color:var(--foam);font-weight:400}
+.panel-sub{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--copper);border-bottom:1px solid var(--rule);padding-bottom:7px;margin:34px 0 14px;font-weight:400}
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart text{font-family:var(--mono);font-size:9px;fill:var(--foam-dim);letter-spacing:.06em}
+.chart .val{fill:var(--foam)}
+.chart .mark{fill:var(--amber)}
+.chart .mark:hover{fill:var(--foam)}
+.chart .track{fill:rgba(242,233,218,.10)}
+.chart .axis{stroke:var(--rule);stroke-width:1}
+.chart .line{fill:none;stroke:var(--amber);stroke-width:2;stroke-linejoin:round}
+.chart .dot{fill:var(--amber);stroke:var(--walnut);stroke-width:2}
+.cell{stroke:var(--walnut);stroke-width:2}
+.cell:hover{stroke:var(--foam)}
+.legend{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--foam-dim);margin-top:10px}
+.legend span{width:14px;height:14px;display:inline-block}
+.empty{font-family:var(--body);font-style:italic;color:var(--foam-dim);padding:18px 0}
+.leech-row{display:flex;justify-content:space-between;gap:16px;padding:11px 0;
+  border-bottom:1px solid var(--rule);font-size:14.5px}
+.leech-row b{color:var(--amber);font-weight:600}
+.leech-n{font-family:var(--mono);font-size:10px;color:var(--oxblood);white-space:nowrap}
+
 /* ---------- the board game ---------- */
 .quiz-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:16px}
 .quiz-score{font-family:var(--disp);font-size:44px;line-height:1;color:var(--amber)}
@@ -253,6 +295,7 @@ h1 em{font-style:normal;color:var(--amber)}
         <button class="btn" id="btnNight">Play the whole night</button>
         <button class="btn hidden" id="btnLeech">Sticking points</button>
         <button class="btn" id="btnBoardGame">Play a board</button>
+        <button class="btn" id="btnStats">The form guide</button>
         <button class="toggle" id="btnTyped" aria-pressed="false">Type the answers</button>
       </div>
     </div>
@@ -337,6 +380,15 @@ h1 em{font-style:normal;color:var(--amber)}
         <button class="btn btn-sm" id="btnQuit">End session</button>
       </span>
     </div>
+  </div>
+
+  <!-- FORM GUIDE -->
+  <div class="stage" id="statsView">
+    <div class="quiz-head">
+      <h2 class="panel-title">The form guide</h2>
+      <button class="btn btn-sm" id="btnStatsBack">Back to the board</button>
+    </div>
+    <div id="statsBody"></div>
   </div>
 
   <!-- THE BOARD GAME -->
@@ -470,7 +522,11 @@ function buildDeck(){
 /* ============ STORAGE ============ */
 const KEY='lastcall:v1';
 let mem=null, TESTING=false;
-const DEFAULT=()=>({v:3,sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[],typed:false});
+/* hist: one row per session, [day, kind, asked, right] — compact because it is
+   the only thing here that grows without bound. acc: cumulative [right, asked]
+   per category. Both arrive empty for anyone upgrading, no migration needed. */
+const DEFAULT=()=>({v:3,sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[],typed:false,hist:[],acc:{}});
+const HIST_MAX=400;
 let S=DEFAULT();
 
 const Store = {
@@ -627,6 +683,50 @@ function grade(id,g){
   if(S.lastDay!==d){ S.streak = (S.lastDay===d-1)?(S.streak||0)+1:1; S.lastDay=d; }
   save();
 }
+/* Every answer counts toward what you know, whichever mode you were in; only a
+   drill moves the schedule. Keeping those separate is the whole honesty of the
+   readiness number. */
+let sessAsked=0, sessRight=0;
+
+function record(card,right){
+  if(!card) return;
+  sessAsked++; if(right) sessRight++;
+  const a=(S.acc||(S.acc={}));
+  const row=a[card.c]||(a[card.c]=[0,0]);
+  row[0]+=right?1:0; row[1]++;
+}
+
+function logSession(kind){
+  if(!sessAsked) return;
+  S.hist=(S.hist||[]).concat([[today(),kind,sessAsked,sessRight]]).slice(-HIST_MAX);
+  sessAsked=0; sessRight=0;
+  save();
+}
+
+/* How likely you are to have it right now. A card reviewed exactly one interval
+   ago sits at 0.9 by construction; longer than that and it decays. Cards you
+   have never seen count as zero — the number is about what you know, not what
+   you might guess. */
+function recall(id){
+  const s=S.sched[id];
+  if(!s||!s[REPS]) return 0;
+  const ivl=Math.max(1,s[IVL]);
+  const elapsed=Math.max(0,today()-(s[DUE]-s[IVL]));
+  return Math.pow(0.9,elapsed/ivl);
+}
+
+function readiness(){
+  const act=activeCats();
+  const pool=DECK.filter(c=>act.includes(c.c));
+  const seen=pool.filter(c=>S.sched[c.id]?.[REPS]);
+  const sum=pool.reduce((n,c)=>n+recall(c.id),0);
+  return {
+    pool:pool.length, seen:seen.length,
+    meanSeen: seen.length? seen.reduce((n,c)=>n+recall(c.id),0)/seen.length : 0,
+    pct: pool.length? Math.round(100*sum/pool.length) : 0,
+  };
+}
+
 const activeCats=()=>CATS.filter(c=>catOn(c.id)).map(c=>c.id);
 const dueCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!isLeech(c.id)&&S.sched[c.id]&&S.sched[c.id][DUE]<=today());
 const newCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!S.sched[c.id]);
@@ -743,7 +843,143 @@ function renderBoard(){
 let Q=[],idx=0,mode='drill',flipped=false,score=0,missed=[],lastVerdict=null,diveCat=null;
 
 function show(view){
-  ['board','stage','resultView','quizView'].forEach(v=>$(v).classList.toggle('live',v===view));
+  ['board','stage','resultView','quizView','statsView'].forEach(v=>$(v).classList.toggle('live',v===view));
+}
+
+/* ============ THE FORM GUIDE ============ */
+/* Every chart here is inline SVG and one hue, because every one of them is
+   showing magnitude. Each mark carries a <title>, which is the browser's own
+   tooltip and the screen reader's description at the same time. */
+
+const DAYNAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const dayLabel=d=>new Date(d*DAY).toISOString().slice(0,10);
+
+function renderStats(){
+  const r=readiness();
+  const act=activeCats();
+  const parts=[];
+
+  const verdict = r.pool===0 ? 'Nothing is switched on.'
+    : r.seen===0 ? 'You have not drilled anything yet. The number is honest, not unkind.'
+    : r.pct>=70 ? 'You would hold your end of the table up tonight.'
+    : r.pct>=40 ? 'Some of it would come back. The rest is what the drill is for.'
+    : 'Early days. Most of this is still ahead of you.';
+
+  parts.push(`<div class="hero">
+    <div class="hero-num">${r.pct}<small>%</small></div>
+    <div class="hero-say">${esc(verdict)}</div>
+  </div>
+  <div class="meter"><i style="width:${r.pct}%"></i></div>
+  <div class="sums">
+    <b>${r.pool.toLocaleString()}</b> cards switched on · <b>${r.seen.toLocaleString()}</b> of them drilled at least once<br>
+    of the ones you have drilled, you would recall <b>${Math.round(r.meanSeen*100)}%</b> right now<br>
+    readiness counts a card you have never seen as a card you do not know: ${r.seen.toLocaleString()} × ${Math.round(r.meanSeen*100)}% ÷ ${r.pool.toLocaleString()} = <b>${r.pct}%</b>
+  </div>`);
+
+  parts.push(`<h3 class="panel-sub">Every day you have drilled</h3>`);
+  parts.push(heatmap());
+
+  parts.push(`<h3 class="panel-sub">How you scored, session by session</h3>`);
+  parts.push(sessionLine());
+
+  parts.push(`<h3 class="panel-sub">Where you stand, category by category</h3>`);
+  parts.push(catBars(act));
+
+  parts.push(`<h3 class="panel-sub">Sticking points</h3>`);
+  parts.push(leechList());
+
+  $('statsBody').innerHTML=parts.join('');
+}
+
+function heatCell(n,max){
+  if(!n) return 'var(--heat-0)';
+  const step=Math.min(5,Math.max(1,Math.ceil(5*n/Math.max(max,1))));
+  return `var(--heat-${step})`;
+}
+
+function heatmap(){
+  const WEEKS=13, CELL=15, GAP=0;
+  const byDay={};
+  for(const [d,,asked] of (S.hist||[])) byDay[d]=(byDay[d]||0)+asked;
+  const end=today(), start=end-(WEEKS*7-1);
+  const max=Math.max(0,...Object.entries(byDay).filter(([d])=>+d>=start).map(([,n])=>n));
+  if(!max) return `<p class="empty">Nothing drilled yet — this fills in a square at a time.</p>`;
+
+  const cells=[];
+  for(let i=0;i<WEEKS*7;i++){
+    const d=start+i;
+    const col=Math.floor(i/7), row=i%7;
+    const n=byDay[d]||0;
+    cells.push(`<rect class="cell" x="${col*(CELL+GAP)}" y="${row*(CELL+GAP)}" width="${CELL}" height="${CELL}"
+      fill="${heatCell(n,max)}"><title>${dayLabel(d)} — ${n} card${n===1?'':'s'}</title></rect>`);
+  }
+  const w=WEEKS*(CELL+GAP), h=7*(CELL+GAP);
+  const busiest=Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0];
+  /* Capped at its natural size: a viewBox this small stretched to full width
+     would scale the 9px day labels up with it. */
+  return `<svg class="chart" style="max-width:${w+34}px" viewBox="-26 -4 ${w+30} ${h+8}" role="img"
+      aria-label="Cards drilled each day over the last thirteen weeks. Busiest day ${dayLabel(+busiest[0])} with ${busiest[1]}.">
+    ${[1,3,5].map(i=>`<text x="-6" y="${i*(CELL+GAP)+11}" text-anchor="end">${DAYNAMES[i]}</text>`).join('')}
+    ${cells.join('')}
+  </svg>
+  <div class="legend">Fewer
+    ${[0,1,2,3,4,5].map(i=>`<span style="background:var(--heat-${i})"></span>`).join('')}
+    More · busiest ${dayLabel(+busiest[0])}, ${busiest[1]} cards</div>`;
+}
+
+function sessionLine(){
+  const rows=(S.hist||[]).slice(-30).filter(r=>r[2]>0);
+  if(rows.length<2) return `<p class="empty">Two sessions and a line appears here.</p>`;
+  const W=640,H=150,P=10;
+  const pts=rows.map((r,i)=>{
+    const pct=Math.round(100*r[3]/r[2]);
+    return {x:P+i*((W-2*P)/(rows.length-1)), y:H-P-(pct/100)*(H-2*P), pct, r};
+  });
+  const path=pts.map((p,i)=>`${i?'L':'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const avg=Math.round(pts.reduce((n,p)=>n+p.pct,0)/pts.length);
+  return `<svg class="chart" viewBox="-30 -6 ${W+40} ${H+22}" role="img"
+      aria-label="Percentage right in each of the last ${rows.length} sessions. Average ${avg} percent.">
+    ${[0,50,100].map(v=>`<g>
+      <line class="axis" x1="0" y1="${H-P-(v/100)*(H-2*P)}" x2="${W}" y2="${H-P-(v/100)*(H-2*P)}"></line>
+      <text x="-8" y="${H-P-(v/100)*(H-2*P)+3}" text-anchor="end">${v}%</text></g>`).join('')}
+    <path class="line" d="${path}"></path>
+    ${pts.map(p=>`<g><circle class="dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4"></circle>
+      <circle fill="transparent" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="12">
+        <title>${dayLabel(p.r[0])} · ${esc(p.r[1])} · ${p.r[3]} of ${p.r[2]} right (${p.pct}%)</title></circle></g>`).join('')}
+    <text x="0" y="${H+12}">${dayLabel(rows[0][0])}</text>
+    <text x="${W}" y="${H+12}" text-anchor="end">${dayLabel(rows[rows.length-1][0])}</text>
+  </svg>`;
+}
+
+function catBars(act){
+  const rows=act.map(id=>{
+    const a=(S.acc||{})[id];
+    return {id, name:CAT_BY_ID[id]?.name||id, right:a?.[0]||0, asked:a?.[1]||0};
+  }).filter(r=>r.asked>0).sort((a,b)=>(a.right/a.asked)-(b.right/b.asked));
+  if(!rows.length) return `<p class="empty">Answer a few and your weakest categories sort themselves to the top.</p>`;
+  const BAR=22, W=640, LABEL=170, TRACK=W-LABEL-78;   // room for the value, even at 100%
+  const H=rows.length*BAR;
+  return `<svg class="chart" viewBox="0 -4 ${W} ${H+8}" role="img"
+      aria-label="Percentage right per category, weakest first.">
+    ${rows.map((r,i)=>{
+      const pct=Math.min(100,Math.round(100*r.right/r.asked));
+      const w=Math.max(2,(pct/100)*TRACK);
+      return `<g><text x="0" y="${i*BAR+15}">${esc(r.name).slice(0,26)}</text>
+        <rect class="track" x="${LABEL}" y="${i*BAR+5}" width="${TRACK}" height="11" rx="4"></rect>
+        <rect class="mark" x="${LABEL}" y="${i*BAR+5}" width="${w.toFixed(1)}" height="11" rx="4">
+          <title>${esc(r.name)} — ${r.right} of ${r.asked} right</title></rect>
+        <text class="val" x="${LABEL+TRACK+12}" y="${i*BAR+15}">${pct}% · ${r.asked}</text></g>`;
+    }).join('')}
+  </svg>`;
+}
+
+function leechList(){
+  const rows=leechCards().map(c=>({c,n:S.sched[c.id][LAPSES]})).sort((a,b)=>b.n-a.n).slice(0,12);
+  if(!rows.length) return `<p class="empty">Nothing has beaten you five times yet.</p>`;
+  return rows.map(({c,n})=>`<div class="leech-row">
+    <span>${esc(c.q)}<br><b>${esc(c.a)}</b></span>
+    <span class="leech-n">missed ${n}×</span>
+  </div>`).join('');
 }
 
 /* ============ THE BOARD GAME ============ */
@@ -809,6 +1045,7 @@ function scoreTile(right){
 }
 
 function finishQuiz(){
+  logSession('board');
   mode='quiz-done';
   $('scoreNum').innerHTML=(quiz.score<0?'-$':'$')+Math.abs(quiz.score).toLocaleString();
   $('scoreLine').textContent = quiz.wagered ? (quiz.wonWager?'The wager came in.':'The wager did not come in.')
@@ -984,6 +1221,7 @@ function answer(g){
   if(!flipped) return;
   const c=BY_ID[Q[idx]];
   if(!c) return;                 // a keypress landing after the session ended
+  record(c, mode==='drill' ? g>=2 : !!g);
   if(mode==='quiz'){ scoreTile(!!g); return; }
   if(mode==='wager'){ settleWager(!!g); return; }
   if(mode==='drill'){
@@ -1000,6 +1238,7 @@ function answer(g){
 function finish(){
   $('progFill').style.width='100%';
   if(mode==='round'&&night){
+    logSession('night');
     night.round++; night.scores.push(score);
     return nightScorecard();
   }
@@ -1016,6 +1255,7 @@ function finish(){
     $('missedList').innerHTML=missed.map(c=>`<li>${c.q}<br><b>${c.a}</b></li>`).join('');
     show('resultView');
   }else{
+    logSession(diveCat?'dive':'drill');
     renderBoard(); show('board');
   }
 }
@@ -1025,18 +1265,20 @@ $('btnDrill').onclick=startDrill;
 $('btnRound').onclick=()=>{ night=null; startRound(); };
 $('btnNight').onclick=startNight;
 $('btnFlip').onclick=flip;
-$('btnQuit').onclick=()=>{renderBoard();show('board');};
+$('btnQuit').onclick=()=>{logSession(diveCat?'dive':mode);renderBoard();show('board');};
 $('btnAgain').onclick=()=>{
   if(mode==='quiz-done') return startQuiz();
   if(night) return night.round>=NIGHT_ROUNDS ? startNight() : startRound();
   startRound();
 };
-$('btnBack').onclick=()=>{renderBoard();show('board');};
+$('btnBack').onclick=()=>{logSession(mode);renderBoard();show('board');};
 document.querySelectorAll('#gradeRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.g));
 document.querySelectorAll('#roundRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.r));
 $('btnLeech').onclick=startLeechDrill;
 $('btnBoardGame').onclick=startQuiz;
 $('btnQuizDone').onclick=finishQuiz;
+$('btnStats').onclick=()=>{ renderStats(); show('statsView'); };
+$('btnStatsBack').onclick=()=>{ renderBoard(); show('board'); };
 $('btnWager').onclick=startWager;
 $('deckSearch').oninput=()=>renderBoard();
 /* Decks come and go — the Jeopardy build is local and the shelf can be rebuilt.

@@ -55,12 +55,12 @@ This blocks everything after it. Today a card's id is `'k' + index`, so regenera
 
 ## Phase 4 — stats worth opening
 
-- [ ] session history, persisted
-- [ ] per-category accuracy over time and a retention forecast ("what you would score tonight")
-- [ ] calendar heatmap of drilling
-- [ ] leech board with the actual miss counts
-- [ ] a single honest readiness number, with the arithmetic shown
-- [ ] all charts inline SVG, no chart library, readable in the bar-room palette
+- [x] session history, persisted — one compact row per session, capped so it cannot grow without bound
+- [x] per-category accuracy (weakest first) and a recall forecast: a card reviewed one interval ago sits at 0.9 and decays from there
+- [x] calendar heatmap, thirteen weeks, one validated amber ramp
+- [x] leech board with the actual miss counts
+- [x] one readiness number with its arithmetic printed underneath, counting a card you have never seen as one you do not know
+- [x] all charts inline SVG, no chart library, one hue throughout, ramp validated against the walnut surface
 
 ## Phase 5 — proof
 
