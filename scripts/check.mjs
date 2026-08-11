@@ -1,0 +1,139 @@
+/* Drives a real Chrome over CDP against a real page load.
+   The in-page ?selftest covers pure logic; this covers the things only a
+   browser can answer — does progress actually come back after a reload.
+
+   node scripts/check.mjs [url]        default: the local file
+*/
+import { spawn } from 'node:child_process';
+import { mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const CHROME = [
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  '/usr/bin/google-chrome',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+].find(p => existsSync(p));
+if (!CHROME) { console.error('No Chrome found.'); process.exit(2); }
+
+const TARGET = process.argv[2] || pathToFileURL(resolve('public/index.html')).href;
+const PORT = 9444;
+const profile = mkdtempSync(join(tmpdir(), 'lastcall-'));
+const chrome = spawn(CHROME, [
+  '--headless=new', '--disable-gpu', `--remote-debugging-port=${PORT}`,
+  `--user-data-dir=${profile}`, 'about:blank',
+], { stdio: 'ignore' });
+
+let fails = 0;
+const ok = (name, cond) => { if (!cond) fails++; console.log((cond ? 'PASS  ' : 'FAIL  ') + name); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function connect() {
+  for (let i = 0; i < 50; i++) {
+    try {
+      const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+      const page = list.find(t => t.type === 'page');
+      if (page) return page.webSocketDebuggerUrl;
+    } catch {}
+    await sleep(200);
+  }
+  throw new Error('Chrome never came up on the debugging port');
+}
+
+const wsUrl = await connect();
+const ws = new WebSocket(wsUrl);
+await new Promise(r => ws.onopen = r);
+let msgId = 0;
+const pending = new Map();
+ws.onmessage = e => { const m = JSON.parse(e.data); if (pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); } };
+const send = (method, params = {}) => new Promise(r => { pending.set(++msgId, r); ws.send(JSON.stringify({ id: msgId, method, params })); });
+
+const ev = async expr => {
+  const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
+  if (r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description || 'page threw');
+  return r.result.result.value;
+};
+const nav = async (url = TARGET) => {
+  await send('Page.enable');
+  await send('Page.navigate', { url });
+  for (let i = 0; i < 60; i++) {
+    await sleep(200);
+    if (await ev('document.readyState==="complete" && !!document.getElementById("mastStat")').catch(() => false)) break;
+  }
+  await sleep(250);
+};
+// pagehide flushes the live page's state over anything written from outside,
+// so a clean slate means resetting S itself, not clearing the store
+const reset = () => ev('S=DEFAULT(); flush()');
+
+try {
+  console.log(`--- ${TARGET}\n`);
+
+  await nav(); await reset(); await nav();
+  ok('boot: the built-in deck loaded', await ev('BUILTIN.length > 0'));
+  ok('boot: the board rendered every category', await ev('document.querySelectorAll(".tap").length === CATS.length'));
+
+  // --- progress survives a reload. Nothing else matters until this holds.
+  await ev(`document.getElementById('btnDrill').click();
+            document.getElementById('btnFlip').click();
+            document.querySelector('#gradeRow .g2').click()`);
+  const graded = await ev('Object.keys(S.sched)[0]');
+  await ev('flush()');
+  await nav();
+  ok('progress: a graded card is still scheduled after a reload', await ev(`!!S.sched[${JSON.stringify(graded)}]`));
+  ok('progress: the all-time counter persisted', await ev('S.answered === 1'));
+
+  // --- schedules are keyed by content, so a rebuilt deck keeps them
+  ok('ids: every id is a content hash, not a position', await ev('DECK.every(c=>c.id===cardId(c.q))'));
+  ok('ids: the graded card keeps its id across the reload',
+     await ev(`DECK.some(c=>c.id===${JSON.stringify(graded)})`));
+
+  // --- v1 progress in the wild must migrate on load
+  await reset();
+  await ev(`localStorage.setItem('lastcall:v1', JSON.stringify({sched:{k7:{ivl:9,ease:2.5,due:0,reps:2,lapses:0}},off:[],lastDay:null,streak:3,answered:11}));
+            TESTING=true`);   // stop this page's pagehide from clobbering the seeded blob
+  await nav();
+  ok('migrate: a v1 blob is re-keyed by hash on load', await ev(`!!S.sched[cardId(BUILTIN[7].q)]`));
+  ok('migrate: the schedule itself came through', await ev(`S.sched[cardId(BUILTIN[7].q)]?.[0]===9`));
+  ok('migrate: it is packed, not an object', await ev(`Array.isArray(S.sched[cardId(BUILTIN[7].q)]||null)`));
+  ok('migrate: unrelated state is untouched', await ev('S.streak===3 && S.answered===11'));
+
+  // --- hand-added cards
+  await reset(); await nav();
+  await ev(`document.getElementById('tsv').value="Local\\tWhich street is the brewery on\\tMill Street\\tasked every third week\\r\\nMusic Before 1980\\tWho played bass for the Jam\\tBruce Foxton\\r\\njunk\\r\\n";
+            document.getElementById('btnImport').click()`);
+  ok('cards: two rows parsed, junk dropped', /Added 2 cards/.test(await ev(`document.getElementById('ioMsg').textContent`)));
+  ok('cards: an unknown category becomes its own tap', await ev(`[...document.querySelectorAll('.tap-name')].some(e=>e.textContent==='Local')`));
+  ok('cards: a known category absorbs the card', await ev(`DECK.filter(c=>c.c==='mus').length===BUILTIN.filter(c=>c.c==='mus').length+1`));
+  await ev('flush()'); await nav();
+  ok('cards: hand-added cards survive a reload', await ev('(S.user||[]).length===2'));
+  await ev(`window.confirm=()=>true; document.getElementById('btnReset').click()`);
+  ok('cards: clearing progress keeps them', await ev('(S.user||[]).length===2 && Object.keys(S.sched).length===0'));
+
+  // --- ?selftest must not write over real progress when its tab goes away
+  await reset(); await nav();
+  await ev(`document.getElementById('btnDrill').click();
+            document.getElementById('btnFlip').click();
+            document.querySelector('#gradeRow .g2').click()`);
+  await ev('flush()');
+  const real = await ev(`localStorage.getItem('lastcall:v1')`);
+  await nav(TARGET + '?selftest');
+  const suite = await ev(`document.body.innerText`);
+  ok('selftest: the in-page suite passes', /all \d+ passed/.test(suite));
+  await nav();
+  ok('selftest: it left real progress alone', await ev(`localStorage.getItem('lastcall:v1')`) === real);
+
+  await reset();
+} catch (err) {
+  fails++;
+  console.log('FAIL  harness threw: ' + err.message);
+} finally {
+  ws.close();
+  chrome.kill();
+  try { rmSync(profile, { recursive: true, force: true }); } catch {}
+}
+
+console.log(`\n${fails ? fails + ' FAILED' : 'all checks passed'}`);
+process.exit(fails ? 1 : 0);

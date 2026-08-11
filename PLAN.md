@@ -17,21 +17,21 @@ Working file. Each loop iteration: pick the topmost unchecked item, do it, verif
 
 ## Phase 0 — repo and deploy skeleton
 
-- [ ] `git init`, `.gitignore` (`.cache/`, `public/decks/jeopardy/`, `node_modules`), initial commit of the app as it stands
-- [ ] `README.md`: what it is, how to run, deck sources and their licenses, the content rule, the Jeopardy carve-out stated plainly
-- [ ] LICENSE for the code (MIT), separate attribution note for CC BY-SA deck content
-- [ ] public repo `Slyfeint/lastcall`, pushed
-- [ ] Vercel project, static, auto-deploy on push; confirm the live URL serves the app and `cards.js` loads
-- [ ] smoke check against the deployed URL, not just localhost
+- [x] `git init`, `.gitignore` (`.cache/`, `public/decks/jeopardy/`, `node_modules`), initial commit of the app as it stands
+- [x] `README.md`: what it is, how to run, deck sources and their licenses, the content rule, the Jeopardy carve-out stated plainly
+- [x] LICENSE for the code (MIT), separate attribution note for CC BY-SA deck content
+- [x] public repo `Slyfeint/lastcall`, pushed
+- [x] Vercel project, static, auto-deploy on push; confirm the live URL serves the app and `cards.js` loads
+- [x] smoke check against the deployed URL, not just localhost
 
 ## Phase 1 — ids and storage that survive a growing deck
 
 This blocks everything after it. Today a card's id is `'k' + index`, so regenerating a deck silently reassigns every schedule.
 
-- [ ] content-hash card ids (short base36 of the question text); one-time migration from `k<n>` for existing progress
-- [ ] assert in the self-test that an id is stable when cards are inserted, removed and reordered
-- [ ] measure the localStorage ceiling with 50k scheduled cards; compact the sched encoding (arrays, not objects) or move progress to IndexedDB, whichever the measurement demands
-- [ ] progress must never be lost by a deck rebuild — schedules for cards that vanish are kept, not pruned
+- [x] content-hash card ids (short base36 of the question text); one-time migration from `k<n>` for existing progress
+- [x] assert in the self-test that an id is stable when cards are inserted, removed and reordered
+- [x] measure the localStorage ceiling with 50k scheduled cards; compact the sched encoding (arrays, not objects) or move progress to IndexedDB, whichever the measurement demands
+- [x] progress must never be lost by a deck rebuild — schedules for cards that vanish are kept, not pruned
 
 ## Phase 2 — deck pipeline
 
@@ -63,7 +63,7 @@ This blocks everything after it. Today a card's id is `'k' + index`, so regenera
 
 ## Phase 5 — proof
 
-- [ ] `npm test`: deck lint + headless CDP suite (persistence, import round trip, id stability, lazy loading, typed-answer matching)
+- [~] `npm test`: headless CDP suite in place (persistence, migration, import round trip, id stability). Still to add: deck lint, lazy loading, typed-answer matching
 - [ ] every check demonstrated failing before it is trusted
 - [ ] a11y pass: contrast, focus, labels, screen-reader names on the tap rows
 - [ ] performance on a cold phone load with the largest deck

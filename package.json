@@ -1,0 +1,13 @@
+{
+  "name": "lastcall",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Spaced-repetition drill for pub trivia",
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "check:live": "node scripts/check.mjs https://lastcall-kappa.vercel.app/",
+    "test": "npm run check"
+  },
+  "license": "MIT"
+}

@@ -6,3 +6,5 @@ prof/
 
 # Jeopardy clues are not ours to redistribute — built locally, never committed, never deployed
 public/decks/jeopardy/
+
+.vercel

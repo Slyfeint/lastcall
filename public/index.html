@@ -289,9 +289,31 @@ const BUILT_CATS = [
 const BUILTIN = typeof CARDS==='undefined' ? [] : CARDS;
 let DECK=[], CATS=[], BY_ID={}, CAT_BY_ID={};
 
+/* A card's id is its question, hashed — not its position. Decks get rebuilt and
+   reordered; a schedule earned over months must not follow an array index.
+   cyrb53: 53 bits, so a 50k deck is nowhere near a birthday collision. */
+function hash53(str,seed=0){
+  let h1=0xdeadbeef^seed, h2=0x41c6ce57^seed;
+  for(let i=0;i<str.length;i++){
+    const ch=str.charCodeAt(i);
+    h1=Math.imul(h1^ch,2654435761);
+    h2=Math.imul(h2^ch,1597334677);
+  }
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+  h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return 4294967296*(2097151&h2)+(h1>>>0);
+}
+const cardId=q=>hash53(q.toLowerCase().replace(/[^a-z0-9]+/g,'')).toString(36);
+
 function buildDeck(){
-  DECK = BUILTIN.map((c,i)=>({...c,id:'k'+i}))
-    .concat((S.user||[]).map((c,i)=>({...c,id:'u'+i})));
+  const seen=new Set();
+  DECK=[];
+  for(const c of BUILTIN.concat(S.user||[])){
+    const id=cardId(c.q);
+    if(seen.has(id)) continue;   // same question from two sources is one card
+    seen.add(id);
+    DECK.push({...c,id});
+  }
   BY_ID = Object.fromEntries(DECK.map(c=>[c.id,c]));
   const own={};
   (S.user||[]).forEach(c=>{ if(!own[c.c]) own[c.c]={id:c.c,name:c.cn,style:'Added by you'}; });
@@ -302,7 +324,7 @@ function buildDeck(){
 /* ============ STORAGE ============ */
 const KEY='lastcall:v1';
 let mem=null, TESTING=false;
-const DEFAULT=()=>({sched:{},off:[],lastDay:null,streak:0,answered:0,user:[]});
+const DEFAULT=()=>({v:3,sched:{},off:[],lastDay:null,streak:0,answered:0,user:[]});
 let S=DEFAULT();
 
 const Store = {
@@ -319,8 +341,34 @@ const Store = {
 async function load(){
   try{
     const raw=await Store.get(KEY);
-    if(raw) S={...DEFAULT(),...JSON.parse(raw)};
-  }catch(e){ if(mem) S={...DEFAULT(),...mem}; }
+    // v defaults to 1, not to DEFAULT()'s 2 — a blob saved before versioning must still migrate
+    if(raw) S={...DEFAULT(),v:1,...JSON.parse(raw)};
+  }catch(e){ if(mem) S={...DEFAULT(),v:1,...mem}; }
+  migrate();
+}
+
+function migrate(){
+  if(S.v>=3) return;
+  if(S.v<2){
+    // v1 keyed schedules by array position ('k7', 'u2') — re-key them by question hash
+    const next={};
+    for(const k in S.sched){
+      const m=/^([ku])(\d+)$/.exec(k);
+      if(!m){ next[k]=S.sched[k]; continue; }
+      const card = m[1]==='k' ? BUILTIN[+m[2]] : (S.user||[])[+m[2]];
+      if(card) next[cardId(card.q)]=S.sched[k];
+    }
+    S.sched=next; S.v=2;
+  }
+  if(S.v<3){
+    // v2 stored a schedule as an object; pack it
+    for(const k in S.sched){
+      const s=S.sched[k];
+      if(!Array.isArray(s)) S.sched[k]=[s.ivl|0, round2(s.ease??2.5), s.due|0, s.reps|0, s.lapses|0];
+    }
+    S.v=3;
+  }
+  save();
 }
 let saveTimer=null;
 function save(){
@@ -332,7 +380,9 @@ function save(){
 async function flush(){
   if(TESTING) return;
   clearTimeout(saveTimer);
-  try{ await Store.set(KEY,JSON.stringify(S)); }catch(e){}
+  // A full quota is silent otherwise: the app keeps working and loses everything on close
+  try{ await Store.set(KEY,JSON.stringify(S)); }
+  catch(e){ const el=$('subline'); if(el) el.textContent='Storage is full — progress is not being saved. Export a backup.'; }
 }
 addEventListener('pagehide',flush);
 
@@ -340,15 +390,20 @@ addEventListener('pagehide',flush);
 const DAY=86400000;
 const today=()=>Math.floor(Date.now()/DAY);
 
+/* A schedule is [interval, ease, dueDay, reps, lapses]. Arrays not objects:
+   measured, 50k scheduled cards is 1.5 MB packed against 3.2 MB of key names,
+   and this browser's localStorage gives up somewhere past 4 MB. */
+const IVL=0, EASE=1, DUE=2, REPS=3, LAPSES=4;
 const LEECH=5;
-const isLeech=id=>(S.sched[id]?.lapses||0)>=LEECH;
+const isLeech=id=>(S.sched[id]?.[LAPSES]||0)>=LEECH;
+const round2=x=>Math.round(x*100)/100;
 
 function grade(id,g){
-  const s=S.sched[id]||{ivl:0,ease:2.5,due:0,reps:0,lapses:0};
-  if(g===1){ s.ease=Math.max(1.3,s.ease-0.2); s.ivl=0; s.due=today(); s.lapses=(s.lapses||0)+1; }
-  else if(g===2){ s.ivl = s.reps===0 ? 1 : Math.max(1,Math.round(s.ivl*s.ease)); s.due=today()+s.ivl; s.reps++; }
+  const s=S.sched[id]||[0,2.5,0,0,0];
+  if(g===1){ s[EASE]=round2(Math.max(1.3,s[EASE]-0.2)); s[IVL]=0; s[DUE]=today(); s[LAPSES]++; }
+  else if(g===2){ s[IVL] = s[REPS]===0 ? 1 : Math.max(1,Math.round(s[IVL]*s[EASE])); s[DUE]=today()+s[IVL]; s[REPS]++; }
   // ponytail: one "easy" clears the leech flag; no consecutive-success counter
-  else { s.ease=Math.min(3.2,s.ease+0.15); s.ivl = s.reps===0 ? 3 : Math.max(2,Math.round(s.ivl*s.ease*1.3)); s.due=today()+s.ivl; s.reps++; s.lapses=0; }
+  else { s[EASE]=round2(Math.min(3.2,s[EASE]+0.15)); s[IVL] = s[REPS]===0 ? 3 : Math.max(2,Math.round(s[IVL]*s[EASE]*1.3)); s[DUE]=today()+s[IVL]; s[REPS]++; s[LAPSES]=0; }
   S.sched[id]=s;
   S.answered=(S.answered||0)+1;
   const d=today();
@@ -356,14 +411,14 @@ function grade(id,g){
   save();
 }
 const activeCats=()=>CATS.filter(c=>!S.off.includes(c.id)).map(c=>c.id);
-const dueCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!isLeech(c.id)&&S.sched[c.id]&&S.sched[c.id].due<=today());
+const dueCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!isLeech(c.id)&&S.sched[c.id]&&S.sched[c.id][DUE]<=today());
 const newCards=cid=>DECK.filter(c=>(!cid||c.c===cid)&&!S.sched[c.id]);
 const leechCards=()=>{const act=activeCats();return DECK.filter(c=>act.includes(c.c)&&isLeech(c.id));};
 
 function mastery(cid){
   const pool=DECK.filter(c=>c.c===cid);
   let t=0;
-  pool.forEach(c=>{const s=S.sched[c.id]; if(s&&s.reps>0) t+=Math.min(s.ivl,21)/21;});
+  pool.forEach(c=>{const s=S.sched[c.id]; if(s&&s[REPS]>0) t+=Math.min(s[IVL],21)/21;});
   return pool.length? t/pool.length : 0;
 }
 
@@ -376,7 +431,7 @@ function renderBoard(){
   const due=dueCards().filter(c=>act.includes(c.c)).length;
   const fresh=newCards().filter(c=>act.includes(c.c)).length;
   const leeches=leechCards().length;
-  const seen=Object.keys(S.sched).length;
+  const seen=DECK.filter(c=>S.sched[c.id]).length;   // orphaned schedules stay in storage, off the count
   const overall=Math.round(CATS.reduce((a,c)=>a+mastery(c.id),0)/CATS.length*100);
 
   $('mastStat').innerHTML=
@@ -582,11 +637,30 @@ function selftest(){
   ok('TSV: missing note is empty, not undefined', rows[1].n==='');
 
   S=DEFAULT(); buildDeck();
-  const firstId=DECK[0].id, deckLen=DECK.length;
+  const firstId=DECK[0].id, deckLen=DECK.length, sample=DECK[7], sampleId=sample.id;
   S.user=[rows[0]]; buildDeck();
   ok('deck: built-in ids do not move when a card is added', DECK[0].id===firstId&&DECK.length===deckLen+1);
-  ok('deck: user card is addressable', BY_ID['u0']&&BY_ID['u0'].q==='Where');
+  ok('deck: user card is addressable', BY_ID[cardId('Where')]&&BY_ID[cardId('Where')].q==='Where');
   ok('deck: own category appears', CATS.some(c=>c.id==='u:local'));
+
+  // ids must survive the deck being rewritten, which is what a rebuild does
+  ok('id: depends on the question, not the position', cardId(sample.q)===sampleId);
+  ok('id: unaffected by punctuation, case and spacing', cardId('Capital of Peru?')===cardId('capital  of PERU'));
+  ok('id: different questions get different ids', cardId('Capital of Peru')!==cardId('Capital of Chile'));
+  const shuffledIds=new Set(shuffle(BUILTIN.slice()).map(c=>cardId(c.q)));
+  ok('id: no collisions across the whole built-in deck', shuffledIds.size===new Set(BUILTIN.map(c=>c.q)).size);
+  ok('id: reordering and deleting does not move an id', [...shuffledIds].includes(sampleId));
+
+  // v1 progress keyed by index must land on the same card after migration
+  S=DEFAULT(); S.v=1; S.sched={'k7':{ivl:9,ease:2.5,due:0,reps:2,lapses:0}}; migrate();
+  const moved=S.sched[cardId(BUILTIN[7].q)];
+  ok('migrate: v1 index keys re-key to the same card', !!moved && moved[IVL]===9 && moved[REPS]===2);
+  ok('migrate: v2 objects are packed into arrays', Array.isArray(moved) && moved.length===5);
+  ok('migrate: lands on the current version', S.v===3);
+  S=DEFAULT(); S.sched={'zzzorphan':{ivl:1,ease:2.5,due:0,reps:1,lapses:0}}; buildDeck();
+  ok('deck: a schedule with no card left in the deck is kept, not pruned', !!S.sched['zzzorphan']);
+
+  S=DEFAULT(); S.user=[rows[0]]; buildDeck();
 
   const t=DECK[0].id;
   for(let i=0;i<4;i++) grade(t,1);
