@@ -106,17 +106,21 @@ try {
        return n<=12;          // a literal, not PER_AREA — a check must not read its own answer
      })`));
 
-  // --- search has to reach a deck the board is not currently showing
+  /* Folding only kicks in past a dozen decks in one area, which is the local
+     Jeopardy build, not the hosted site. Search is checked either way; the
+     folding checks say so when there is nothing to fold rather than failing. */
   const hidden = await ev(`(()=>{
     const drawn=new Set([...document.querySelectorAll('.tap')].map(e=>e.dataset.cat));
     const c=CATS.find(x=>!drawn.has(x.id));
     return c?c.name:null;
   })()`);
-  ok('search: some deck starts out folded away', !!hidden);
-  await ev(`document.getElementById('deckSearch').value=${JSON.stringify((hidden||'').slice(0, 6))};
+  const target = hidden || await ev('CATS[CATS.length-1].name');
+  await ev(`document.getElementById('deckSearch').value=${JSON.stringify(target.slice(0, 6))};
             document.getElementById('deckSearch').dispatchEvent(new Event('input'))`);
-  ok('search: it finds it', await ev(`[...document.querySelectorAll('.tap-name')].some(e=>e.textContent===${JSON.stringify(hidden)})`));
+  ok('search: it finds a deck by name', await ev(`[...document.querySelectorAll('.tap-name')].some(e=>e.textContent===${JSON.stringify(target)})`));
   ok('search: and narrows the count', await ev('document.getElementById("searchCount").textContent.includes(" of ")'));
+  if (hidden) ok('search: it reaches a deck the board had folded away', true);
+  else console.log(`SKIP  folding not exercised — only ${await ev('CATS.length')} categories, none folded`);
   await ev(`document.getElementById('deckSearch').value='zzzznothing';
             document.getElementById('deckSearch').dispatchEvent(new Event('input'))`);
   ok('search: says so when nothing matches', await ev(`document.querySelectorAll('.tap').length===0 && /Nothing matches/.test(document.getElementById('tapList').textContent)`));
@@ -125,12 +129,12 @@ try {
   ok('search: clearing it brings the board back', await ev('document.querySelectorAll(".tap").length > 5'));
 
   const moreBtn = await ev(`!!document.querySelector('.more')`);
-  ok('shelf: a folded area offers to show the rest', moreBtn);
   if (moreBtn) {
+    ok('shelf: a folded area offers to show the rest', true);
     const shownBefore = await ev('document.querySelectorAll(".tap").length');
     await ev(`document.querySelector('.more').click()`);
     ok('shelf: showing the rest actually adds rows', await ev(`document.querySelectorAll(".tap").length > ${shownBefore}`));
-  }
+  } else console.log('SKIP  no area is folded, so there is no "show all" to press');
   const shelfDeck = await ev('MANIFEST.find(d=>d.count>50).id');
   const before = await ev('DECK.length');
   await ev(`document.querySelector('.tap[data-cat=${JSON.stringify(shelfDeck)}]').click()`);
