@@ -21,7 +21,7 @@
    "style": "Movements, buildings, and the people behind them",
    "area": "Page",
    "source": "opentdb",
-   "count": 40,
+   "count": 157,
    "file": "decks/art2.json"
   },
   {
@@ -30,7 +30,7 @@
    "style": "Novels, poets, and who wrote which one",
    "area": "Page",
    "source": "opentdb",
-   "count": 85,
+   "count": 164,
    "file": "decks/books.json"
   },
   {
@@ -39,7 +39,7 @@
    "style": "Pieces, rules, and the box everyone owns",
    "area": "Play",
    "source": "opentdb",
-   "count": 39,
+   "count": 162,
    "file": "decks/board.json"
   },
   {
@@ -57,7 +57,7 @@
    "style": "Cars, planes, ships, and the engines in them",
    "area": "Play",
    "source": "opentdb",
-   "count": 34,
+   "count": 156,
    "file": "decks/wheels.json"
   },
   {
@@ -75,7 +75,7 @@
    "style": "Species, collective nouns, and the odd beak",
    "area": "Science",
    "source": "opentdb",
-   "count": 38,
+   "count": 170,
    "file": "decks/fauna.json"
   },
   {
@@ -93,7 +93,7 @@
    "style": "Numbers, shapes, and the proofs with names",
    "area": "Science",
    "source": "opentdb",
-   "count": 34,
+   "count": 156,
    "file": "decks/math.json"
   },
   {
@@ -129,7 +129,7 @@
    "style": "Animation, from Saturday morning onward",
    "area": "Screen",
    "source": "opentdb",
-   "count": 88,
+   "count": 161,
    "file": "decks/toons.json"
   },
   {
@@ -138,7 +138,7 @@
    "style": "Names, faces, and the tabloid decades",
    "area": "Screen",
    "source": "opentdb",
-   "count": 44,
+   "count": 161,
    "file": "decks/fame.json"
   },
   {
@@ -147,7 +147,7 @@
    "style": "Panels, publishers, and secret identities",
    "area": "Screen",
    "source": "opentdb",
-   "count": 45,
+   "count": 157,
    "file": "decks/comics.json"
   },
   {
@@ -201,7 +201,7 @@
    "style": "Offices, parties, and how a bill moves",
    "area": "World",
    "source": "opentdb",
-   "count": 31,
+   "count": 156,
    "file": "decks/pol.json"
   },
   {
@@ -210,7 +210,7 @@
    "style": "Gods beyond the Greek and Roman set",
    "area": "World",
    "source": "opentdb",
-   "count": 36,
+   "count": 165,
    "file": "decks/mythos.json"
   }
  ]

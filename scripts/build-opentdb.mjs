@@ -1,4 +1,6 @@
-/* Turns the cached Open Trivia DB pages into deck files the app can lazy-load.
+/* Turns the cached Open Trivia DB pages into deck files the app can lazy-load,
+   then folds in the hand-written cards from house/<deck-id>.json — the cache
+   is a source, not the source, so a rebuild must never lose house cards.
 
    Run scripts/fetch-opentdb.mjs first. This step is offline and instant, so
    re-run it freely while tuning the filters.
@@ -75,6 +77,26 @@ for (const file of readdirSync(CACHE)) {
     if (!decks.has(meta[0])) decks.set(meta[0], []);
     decks.get(meta[0]).push({ q, a, d: DIFF[b64(row.difficulty)] || 2, s: 'otdb' });
     kept++;
+  }
+}
+
+const HOUSE = 'house';
+if (existsSync(HOUSE)) {
+  for (const file of readdirSync(HOUSE)) {
+    if (!file.endsWith('.json')) continue;
+    const id = file.slice(0, -5);
+    for (const c of JSON.parse(readFileSync(`${HOUSE}/${file}`, 'utf8'))) {
+      read++;
+      const q = c.q?.trim(), a = String(c.a ?? '').trim();
+      const why = check({ q, a });
+      if (why) { rejected[why] = (rejected[why] || 0) + 1; continue; }
+      const k = norm(q);
+      if (seen.has(k)) { dropped.dupe++; continue; }
+      seen.add(k);
+      if (!decks.has(id)) decks.set(id, []);
+      decks.get(id).push({ q, a, d: c.d || 2, s: 'house' });
+      kept++;
+    }
   }
 }
 
