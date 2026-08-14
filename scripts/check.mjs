@@ -394,6 +394,127 @@ try {
   ok('wager: losing it costs the bet', await ev(`quiz.score===0`));
   ok('wager: and it is not offered twice', !(await visible('wagerBox')));
 
+  // --- the table: the same board, dealt to friends
+  await reset(); await nav();
+  // an escaped session logs itself — otherwise its tally leaks into whatever logs next
+  await ev(`document.getElementById('btnRound').click();
+            (()=>{ for(let i=0;i<2;i++){ if(!flipped) flip(); answer(1); } })();
+            document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`);
+  ok('table: an escaped round logs its own session', await ev(`(S.hist||[]).length===1 && S.hist[0][2]===2`));
+
+  await ev(`document.getElementById('btnBoardGame').click()`);
+  ok('table: a fresh board offers seats', await visible('seatRow'));
+  await ev(`document.getElementById('quizSeats').value='Sam';
+            document.getElementById('btnDeal').click()`);
+  ok('table: one name is not a table, and it says so',
+     await ev(`!quiz.players && /at least two names/.test(document.getElementById('seatMsg').textContent)`));
+  await ev(`document.getElementById('quizSeats').value='Sam, Sam, Ann, Ben, Cal, Dee, Eli';
+            document.getElementById('btnDeal').click()`);
+  ok('table: two Sams both keep a seat', await ev(`quiz.players.some(p=>p.name==='Sam') && quiz.players.some(p=>p.name==='Sam 2')`));
+  ok('table: six seats at a table, and it says so',
+     await ev(`quiz.players.length===6 && /Six seats/.test(document.getElementById('seatMsg').textContent)`));
+  await ev(`document.getElementById('quizSeats').value='Alice, Bob';
+            document.getElementById('btnDeal').click()`);
+  ok('table: dealing two names makes it hot-seat', await ev('quiz.players?.length===2 && quiz.turn===0'));
+  ok('table: the solo score makes way for the scoreboard',
+     !(await visible('quizScore')) && await ev(`document.querySelectorAll('#quizPlayers .pl').length===2`));
+  ok('table: exactly one seat is marked as having the turn',
+     await ev(`document.querySelectorAll('#quizPlayers .pl[aria-current]').length===1`));
+  ok('table: the names are remembered for next time', await ev(`S.names==='Alice, Bob'`));
+  const unnamedQuiz = await ev(`(()=>{
+    const name=el=>(el.getAttribute('aria-label')||el.textContent||el.value||el.placeholder||'').trim();
+    return [...document.querySelectorAll('#quizView button, #quizView input')]
+      .filter(el=>el.offsetWidth+el.offsetHeight>0 && !name(el)).length;
+  })()`);
+  ok('table: every control on the table screen has a name', unnamedQuiz === 0);
+
+  const accBefore = await ev('JSON.stringify(S.acc)');
+  const histBefore = await ev('JSON.stringify(S.hist)');
+  await ev(`document.querySelector('.tile[data-cell="0:0"]').click()`);
+  ok('table: the clue says whose turn it is', await ev(`document.getElementById('cardCat').textContent.startsWith('Alice · ')`));
+  await ev(`flip(); answer(1)`);
+  ok('table: a right answer pays that seat', await ev('quiz.players[0].score===200'));
+  ok('table: and the turn passes', await ev('quiz.turn===1'));
+  ok('table: the pass is announced for a screen reader',
+     await ev(`/Alice won \\$200.*Bob to pick/.test(document.getElementById('turnStatus').textContent)`));
+  ok('table: once play starts the seats row is gone', !(await visible('seatRow')));
+  await ev(`document.querySelector('.tile[data-cell="1:4"]').click(); flip(); answer(0)`);
+  ok('table: a miss costs the seat that missed', await ev('quiz.players[1].score===-1000'));
+  ok('table: other people’s answers stay out of your form', await ev('JSON.stringify(S.acc)') === accBefore);
+
+  await ev(`document.getElementById('btnQuizDone').click()`);
+  ok('table: the standings name the winner', await ev(`/Alice takes the night/.test(document.getElementById('scoreLine').textContent)`));
+  ok('table: every seat is on the scorecard', await ev(`document.querySelectorAll('#missedList li').length===2`));
+  ok('table: red money is legible, not amber', await ev(`!!document.querySelector('#missedList b.neg')`));
+  ok('table: the game lands on the record, scores and all',
+     await ev(`(S.games||[]).length===1 && S.games[0][1].join()==='Alice,Bob' && S.games[0][2].join()==='200,-1000'`));
+  ok('table: and your personal history never noticed', await ev('JSON.stringify(S.hist)') === histBefore);
+
+  // the record has to survive a reload, or it is not a record
+  await ev('flush()'); await nav();
+  ok('table: the record survives a reload', await ev(`(S.games||[]).length===1 && S.games[0][2].join()==='200,-1000'`));
+  await ev(`document.getElementById('btnBoardGame').click()`);
+  ok('table: the seats remember who was here', await ev(`document.getElementById('quizSeats').value==='Alice, Bob'`));
+
+  // names typed but never "dealt" still count when the first tile is picked
+  await ev(`(()=>{ const i=document.getElementById('quizSeats');
+    i.value='Cara, Dan'; i.dispatchEvent(new Event('input')); })();
+    document.querySelector('.tile[data-cell="0:0"]').click()`);
+  ok('table: names typed but never dealt still count', await ev(`quiz.players?.length===2 && quiz.players[0].name==='Cara'`));
+  await ev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`);
+  await ev(`document.getElementById('btnQuizDone').click()`);
+  ok('table: an unplayed board is not a game on the record', await ev('(S.games||[]).length===1'));
+  ok('table: an even table splits the night', await ev(`/Cara and Dan split the night/.test(document.getElementById('scoreLine').textContent)`));
+
+  // a full clear has to end the game on its own — and still offer no wager
+  await ev(`document.getElementById('btnAgain').click()`);
+  ok('table: another board keeps the same table, back at nothing',
+     await ev('quiz.players?.length===2 && quiz.players.every(p=>p.score===0) && quiz.spent.size===0'));
+  await ev(`(()=>{ for(let col=0;col<quiz.cats.length;col++) for(let row=0;row<5;row++){
+      const el=document.querySelector('.tile[data-cell="'+col+':'+row+'"]');
+      if(el && !el.disabled){ el.click(); flip(); answer(1); }
+    } })()`);
+  ok('table: clearing the board ends it on its own', await visible('resultView'));
+  ok('table: a cleared table board still offers no wager', !(await visible('wagerBox')));
+  ok('table: the cleared board is on the record', await ev('(S.games||[]).length===2'));
+  ok('table: finishing twice cannot log twice', await ev('finishQuiz(); (S.games||[]).length===2'));
+
+  // the record is capped, oldest games first out the door
+  await ev(`S.games=Array.from({length:120},(_,i)=>[today(),['X','Y'],[i,0]]);
+            document.getElementById('btnAgain').click()`);
+  await ev(`document.querySelector('.tile[data-cell="0:0"]').click(); flip(); answer(1);
+            document.getElementById('btnQuizDone').click()`);
+  ok('table: the record stays capped at 120 games',
+     await ev(`S.games.length===120 && S.games[119][1].join()==='Cara,Dan' && S.games[0][2][0]===1`));
+
+  await ev(`document.getElementById('btnBack').click(); document.getElementById('btnStats').click()`);
+  ok('table: the form guide shows the table’s record',
+     await ev(`/Cara/.test(document.getElementById('statsBody').textContent) && /won \\d+ of \\d+/.test(document.getElementById('statsBody').textContent)`));
+  await ev(`document.getElementById('btnStatsBack').click()`);
+  await ev(`document.getElementById('quizSeats')&&0; document.getElementById('btnBoardGame').click()`);
+  ok('table: the plain board game is still solo', await ev('!quiz.players'));
+  await ev(`document.getElementById('btnQuizDone').click(); document.getElementById('btnBack').click()`);
+
+  // a backup carries the table's record — and drops rows that are not games
+  await reset(); await nav();
+  await ev(`(async()=>{
+    const f=new File([JSON.stringify({sched:{},games:[
+      [today(),['Zed','Quinn'],[600,-200]], ['junk'], [today(),['A'],[1,2]]
+    ]})],'b.json',{type:'application/json'});
+    const dt=new DataTransfer(); dt.items.add(f);
+    const inp=document.getElementById('fileImport');
+    Object.defineProperty(inp,'files',{value:dt.files,configurable:true});
+    inp.dispatchEvent(new Event('change'));
+    await new Promise(r=>setTimeout(r,150));
+  })()`);
+  ok('restore: the table’s record rides along in a backup',
+     await ev(`(S.games||[]).length===1 && S.games[0][1].join()==='Zed,Quinn'`));
+  ok('restore: rows that are not games are dropped at the door', await ev('(S.games||[]).length===1'));
+  await ev(`document.getElementById('btnStats').click()`);
+  ok('restore: the restored record reads back in the form guide',
+     await ev(`/Zed/.test(document.getElementById('statsBody').textContent)`));
+  await ev(`document.getElementById('btnStatsBack').click()`);
+
   // --- the whole night
   await reset(); await nav();
   await ev(`document.getElementById('btnNight').click()`);

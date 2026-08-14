@@ -1,0 +1,292 @@
+[
+ {
+  "q": "How many points is a touchdown worth in American football, before any conversion attempt?",
+  "a": "6",
+  "d": 1
+ },
+ {
+  "q": "In a game of tennis, what score comes after 30?",
+  "a": "40",
+  "d": 1
+ },
+ {
+  "q": "How many players from one team are on the court at once in basketball?",
+  "a": "5",
+  "d": 1
+ },
+ {
+  "q": "What color jersey is worn by the overall leader of the Tour de France?",
+  "a": "Yellow",
+  "d": 1
+ },
+ {
+  "q": "How many holes are played in a standard round of golf?",
+  "a": "18",
+  "d": 1
+ },
+ {
+  "q": "How many rings appear on the Olympic flag?",
+  "a": "5",
+  "d": 1
+ },
+ {
+  "q": "The martial art judo originated in which country?",
+  "a": "Japan",
+  "d": 1
+ },
+ {
+  "q": "In which sport is a puck used?",
+  "a": "Ice hockey",
+  "d": 1
+ },
+ {
+  "q": "What jersey number did Michael Jordan wear for most of his career with the Chicago Bulls?",
+  "a": "23",
+  "d": 1
+ },
+ {
+  "q": "Sprinter Usain Bolt competed for which country?",
+  "a": "Jamaica",
+  "d": 1
+ },
+ {
+  "q": "Boxer Muhammad Ali was born with what name?",
+  "a": "Cassius Clay",
+  "d": 1
+ },
+ {
+  "q": "Which country's rugby team is famous for performing the haka before matches?",
+  "a": "New Zealand",
+  "d": 1
+ },
+ {
+  "q": "Babe Ruth is most famously associated with which baseball team?",
+  "a": "New York Yankees",
+  "d": 1
+ },
+ {
+  "q": "Camp Nou is the home stadium of which football club?",
+  "a": "FC Barcelona",
+  "d": 1
+ },
+ {
+  "q": "On what surface are the tennis matches at Wimbledon played?",
+  "a": "Grass",
+  "d": 1
+ },
+ {
+  "q": "What is it called when a player scores three goals in a single football or hockey game?",
+  "a": "A hat-trick",
+  "d": 1
+ },
+ {
+  "q": "To the nearest kilometer, how long is a marathon?",
+  "a": "42 km",
+  "d": 1
+ },
+ {
+  "q": "In cricket, how many legal deliveries make up an over?",
+  "a": "6",
+  "d": 2
+ },
+ {
+  "q": "What is the maximum break in snooker without a free ball?",
+  "a": "147",
+  "d": 2
+ },
+ {
+  "q": "How many players does each rugby union team have on the field?",
+  "a": "15",
+  "d": 2
+ },
+ {
+  "q": "In which sport do teams from Europe and the United States compete for the Ryder Cup?",
+  "a": "Golf",
+  "d": 2
+ },
+ {
+  "q": "Which tennis Grand Slam tournament is played on clay courts?",
+  "a": "The French Open",
+  "d": 2
+ },
+ {
+  "q": "What is the highest score possible with three darts?",
+  "a": "180",
+  "d": 2
+ },
+ {
+  "q": "Which country won the first FIFA World Cup, held in 1930?",
+  "a": "Uruguay",
+  "d": 2
+ },
+ {
+  "q": "In Olympic handball, how many players per team are on the court, including the goalkeeper?",
+  "a": "7",
+  "d": 2
+ },
+ {
+  "q": "Which sport is contested in a velodrome?",
+  "a": "Track cycling",
+  "d": 2
+ },
+ {
+  "q": "The America's Cup is a trophy in which sport?",
+  "a": "Sailing",
+  "d": 2
+ },
+ {
+  "q": "Diego Maradona scored his 1986 'Hand of God' goal against which country?",
+  "a": "England",
+  "d": 2
+ },
+ {
+  "q": "In the 1980 'Miracle on Ice', the United States hockey team beat which country?",
+  "a": "The Soviet Union",
+  "d": 2
+ },
+ {
+  "q": "How long is an Olympic long-course swimming pool?",
+  "a": "50 meters",
+  "d": 2
+ },
+ {
+  "q": "The 1974 'Rumble in the Jungle' between Muhammad Ali and George Foreman took place in which African country, as it was named at the time?",
+  "a": "Zaire",
+  "d": 2
+ },
+ {
+  "q": "In which city did Jesse Owens win four gold medals at the 1936 Olympics?",
+  "a": "Berlin",
+  "d": 2
+ },
+ {
+  "q": "Which Romanian gymnast scored a perfect 10 at the 1976 Montreal Olympics?",
+  "a": "Nadia Comaneci",
+  "d": 2
+ },
+ {
+  "q": "In what year did Roger Bannister run the four-minute mile?",
+  "a": "1954",
+  "d": 2
+ },
+ {
+  "q": "Zinedine Zidane was sent off for headbutting Marco Materazzi in the final of which tournament?",
+  "a": "The 2006 FIFA World Cup",
+  "d": 2
+ },
+ {
+  "q": "In which Winter Olympic sliding sport does the athlete descend the track head-first?",
+  "a": "Skeleton",
+  "d": 2
+ },
+ {
+  "q": "Biathlon combines rifle shooting with which other discipline?",
+  "a": "Cross-country skiing",
+  "d": 2
+ },
+ {
+  "q": "The 'Fosbury Flop' is a technique in which athletics event?",
+  "a": "High jump",
+  "d": 2
+ },
+ {
+  "q": "How many seconds does an NBA team have on the shot clock to attempt a shot?",
+  "a": "24",
+  "d": 2
+ },
+ {
+  "q": "In football (soccer), what is it called when you play the ball through an opponent's legs?",
+  "a": "A nutmeg",
+  "d": 2
+ },
+ {
+  "q": "Which sport did James Naismith invent in 1891?",
+  "a": "Basketball",
+  "d": 2
+ },
+ {
+  "q": "In boxing, what is a left-handed fighter called?",
+  "a": "A southpaw",
+  "d": 2
+ },
+ {
+  "q": "What is the diameter of a golf hole in inches?",
+  "a": "4.25 inches",
+  "d": 3
+ },
+ {
+  "q": "In which fencing weapon is the entire body a valid target?",
+  "a": "Epee",
+  "d": 3
+ },
+ {
+  "q": "What is the highest rank in professional sumo wrestling?",
+  "a": "Yokozuna",
+  "d": 3
+ },
+ {
+  "q": "In cricket, what type of bowler delivers a googly?",
+  "a": "A leg-spin bowler",
+  "d": 3
+ },
+ {
+  "q": "The Eau Rouge corner is part of which Formula 1 circuit?",
+  "a": "Spa-Francorchamps",
+  "d": 3
+ },
+ {
+  "q": "In what year did Wilt Chamberlain score 100 points in a single NBA game?",
+  "a": "1962",
+  "d": 3
+ },
+ {
+  "q": "Which sport is designated by law as Canada's national summer sport?",
+  "a": "Lacrosse",
+  "d": 3
+ },
+ {
+  "q": "Which Southeast Asian sport resembles volleyball but is played mainly with the feet?",
+  "a": "Sepak takraw",
+  "d": 3
+ },
+ {
+  "q": "Over what distance is the steeplechase run at the Olympics?",
+  "a": "3,000 meters",
+  "d": 3
+ },
+ {
+  "q": "Curling stones are traditionally made from granite quarried on which Scottish island?",
+  "a": "Ailsa Craig",
+  "d": 3
+ },
+ {
+  "q": "Which German racing circuit is nicknamed 'The Green Hell'?",
+  "a": "The Nurburgring",
+  "d": 3
+ },
+ {
+  "q": "How many players does each rugby league team have on the field?",
+  "a": "13",
+  "d": 3
+ },
+ {
+  "q": "Which country beat hosts Brazil in the decisive match of the 1950 FIFA World Cup, a shock known as the 'Maracanazo'?",
+  "a": "Uruguay",
+  "d": 3
+ },
+ {
+  "q": "The Claret Jug is the trophy awarded to the winner of which golf major?",
+  "a": "The Open Championship",
+  "d": 3
+ },
+ {
+  "q": "Which country won the 1983 Cricket World Cup, beating the West Indies in the final at Lord's?",
+  "a": "India",
+  "d": 3
+ },
+ {
+  "q": "Olympic gold medals are made mostly of which metal?",
+  "a": "Silver",
+  "d": 3
+ }
+]

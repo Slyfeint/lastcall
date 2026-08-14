@@ -24,6 +24,7 @@
   --foam-dim:#A8998A;
   --sage:#7E9478;
   --oxblood:#9E4242;
+  --red-lift:#CC6E6E;   /* oxblood reads at 2.69:1 on walnut — this is the same anger at 4.89:1 */
   --rule:rgba(242,233,218,.14);
   --disp:'Antonio','Oswald','Arial Narrow',sans-serif;
   --body:'Karla','Helvetica Neue',sans-serif;
@@ -210,7 +211,22 @@ h1 em{font-style:normal;color:var(--amber)}
 /* ---------- the board game ---------- */
 .quiz-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:16px}
 .quiz-score{font-family:var(--disp);font-size:44px;line-height:1;color:var(--amber)}
-.quiz-score.neg{color:var(--oxblood)}
+.quiz-score.neg{color:var(--red-lift)}
+.quiz-head>div:last-child{margin-left:auto}
+#seatRow{margin-bottom:6px}
+.seat-msg{font-family:var(--mono);font-size:10.5px;color:var(--foam-dim);letter-spacing:.05em;min-height:16px;margin-bottom:8px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.players{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;list-style:none;padding:0}
+.pl{font-family:var(--mono);font-size:12px;letter-spacing:.04em;padding:7px 12px;
+  border:1px solid var(--rule);border-radius:6px;color:var(--foam-dim)}
+.pl b{color:var(--foam);font-family:var(--disp);font-size:17px;margin-left:8px;letter-spacing:.02em}
+.pl.turn{border-color:var(--amber);color:var(--foam)}
+.pl.turn b{color:var(--amber)}
+.pl.neg b{color:var(--red-lift)}
+.missed b.neg,.games-row b.neg{color:var(--red-lift)}
+.games-row{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.games-row b{color:var(--amber)}
+.games-when{font-family:var(--mono);font-size:10.5px;color:var(--foam-dim);letter-spacing:.05em;white-space:nowrap}
 .grid-wrap{overflow-x:auto}                 /* six columns will not fit a phone */
 .grid{display:grid;gap:4px;min-width:640px}
 .grid-cat{background:var(--stout);border:1px solid var(--rule);padding:12px 8px;min-height:74px;
@@ -294,7 +310,7 @@ h1 em{font-style:normal;color:var(--amber)}
         <button class="btn" id="btnRound">Run a round of 10</button>
         <button class="btn" id="btnNight">Play the whole night</button>
         <button class="btn hidden" id="btnLeech">Sticking points</button>
-        <button class="btn" id="btnBoardGame">Play a board</button>
+        <button class="btn" id="btnBoardGame">Play a board — solo or as a table</button>
         <button class="btn" id="btnStats">The form guide</button>
         <button class="toggle" id="btnTyped" aria-pressed="false">Type the answers</button>
       </div>
@@ -399,6 +415,15 @@ h1 em{font-style:normal;color:var(--amber)}
         <button class="btn btn-sm" id="btnQuizDone">End the board</button>
       </div>
     </div>
+    <div class="type-row" id="seatRow">
+      <input id="quizSeats" type="text" autocomplete="off" spellcheck="false"
+             placeholder="Playing as a table? Names, comma-separated"
+             aria-label="Player names, comma-separated">
+      <button class="btn" id="btnDeal">Deal them in</button>
+    </div>
+    <div class="seat-msg" id="seatMsg" role="status"></div>
+    <div class="players hidden" id="quizPlayers" role="list" aria-label="Scores"></div>
+    <div class="sr-only" id="turnStatus" role="status" aria-live="polite"></div>
     <div class="grid-wrap"><div class="grid" id="quizGrid"></div></div>
   </div>
 
@@ -534,8 +559,10 @@ let mem=null, TESTING=false;
 /* hist: one row per session, [day, kind, asked, right] — compact because it is
    the only thing here that grows without bound. acc: cumulative [right, asked]
    per category. Both arrive empty for anyone upgrading, no migration needed. */
-const DEFAULT=()=>({v:3,sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[],typed:false,hist:[],acc:{}});
-const HIST_MAX=400;
+/* games: one row per table game, [day, names[], scores[]] — the table's record,
+   separate from hist because those answers were not all yours. */
+const DEFAULT=()=>({v:3,sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[],typed:false,hist:[],acc:{},names:'',games:[]});
+const HIST_MAX=400, GAMES_MAX=120;
 let S=DEFAULT();
 
 const Store = {
@@ -558,7 +585,15 @@ async function load(){
   migrate();
 }
 
+/* A game row is [day, names[], scores[]], one score per name. Anything else —
+   a truncated backup, a hand-edited blob — would crash the form guide, so bad
+   rows are dropped at the door rather than guarded against everywhere. */
+const saneGames=g=>Array.isArray(g)?g.filter(r=>Array.isArray(r)&&typeof r[0]==='number'
+  &&Array.isArray(r[1])&&Array.isArray(r[2])&&r[1].length===r[2].length&&r[1].length>0
+  &&r[2].every(n=>typeof n==='number')):[];
+
 function migrate(){
+  S.games=saneGames(S.games);
   if(S.v>=3) return;
   if(S.v<2){
     // v1 keyed schedules by array position ('k7', 'u2') — re-key them by question hash
@@ -897,7 +932,38 @@ function renderStats(){
   parts.push(`<h3 class="panel-sub">Sticking points</h3>`);
   parts.push(leechList());
 
+  parts.push(`<h3 class="panel-sub">The table</h3>`);
+  parts.push(tableStats());
+
   $('statsBody').innerHTML=parts.join('');
+}
+
+/* The table's record: who won what, across every board dealt to friends.
+   Kept apart from your form — these games never touched your schedule. */
+function tableStats(){
+  const games=S.games||[];
+  if(!games.length) return `<p class="empty">Hit “Play a board”, put names in the seats — comma-separated — and the table’s record lands here.</p>`;
+  const tally={};
+  for(const [,names,scores] of games){
+    const top=Math.max(...scores);
+    names.forEach((n,i)=>{
+      const t=tally[n]||(tally[n]={played:0,won:0,best:scores[i]});
+      t.played++;
+      if(scores[i]===top) t.won++;
+      if(scores[i]>t.best) t.best=scores[i];
+    });
+  }
+  const standings=Object.entries(tally)
+    .sort((a,b)=>b[1].won-a[1].won||b[1].best-a[1].best)
+    .map(([n,t])=>`<b>${esc(n)}</b> — won ${t.won} of ${t.played}, best ${money(t.best)}`)
+    .join('<br>');
+  const recent=games.slice(-6).reverse().map(([d,names,scores])=>{
+    const top=Math.max(...scores);
+    return `<div class="games-row"><span>${names.map((n,i)=>
+      scores[i]===top?`<b${scores[i]<0?' class="neg"':''}>${esc(n)} ${money(scores[i])}</b>`:`${esc(n)} ${money(scores[i])}`).join(' · ')}</span>
+      <span class="games-when">${dayLabel(d)}</span></div>`;
+  }).join('');
+  return `<div class="sums">${standings}</div>${recent}`;
 }
 
 function heatCell(n,max){
@@ -1003,20 +1069,70 @@ function eligibleCats(){
   return act.filter(id=>(BY_CAT[id]||[]).length>=VALUES.length);
 }
 
-function startQuiz(){
+/* Two or more names and the board is hot-seat: turns rotate tile by tile, each
+   seat keeps its own money, and none of it touches your personal form — those
+   answers were not all yours. */
+/* Two Sams at one table is normal; silently folding them into one solo game is
+   not. Duplicates get a number, and the scoreboard shows exactly who was dealt. */
+const seatNames=raw=>{
+  const out=[], used=new Set();
+  for(let n of String(raw||'').split(',').map(s=>s.trim()).filter(Boolean)){
+    let name=n, i=2;
+    while(used.has(name.toLowerCase())) name=`${n} ${i++}`;
+    used.add(name.toLowerCase()); out.push(name);
+    if(out.length===6) break;
+  }
+  return out;
+};
+
+function startQuiz(names){
   const picks=shuffle(eligibleCats()).slice(0,6);
   if(picks.length<2) return;
-  night=null;
+  night=null; seatsDirty=false;
   quiz={score:0,cats:picks.map(id=>({
     id, name:CAT_BY_ID[id]?.name||id,
     // easiest first, so the cheap clues really are the cheap ones
     cards:shuffle((BY_CAT[id]||[]).slice()).sort((a,b)=>(a.d||2)-(b.d||2)).slice(0,VALUES.length).map(c=>c.id),
   })),spent:new Set()};
+  if(names?.length>=2){ quiz.players=names.map(n=>({name:n,score:0})); quiz.turn=0; }
+  $('seatMsg').textContent='';
   paintQuiz();
   show('quizView');
 }
 
+/* Seats attach to the board on the table, they do not redeal it — and names
+   typed but never "dealt" still count when the first tile is picked, because
+   losing a table to a missed button press is a silent failure. */
+let seatsDirty=false;
+function dealSeats(){
+  const raw=$('quizSeats').value;
+  const typed=raw.split(',').map(s=>s.trim()).filter(Boolean).length;
+  const names=seatNames(raw);
+  S.names=raw.trim(); save();
+  if(names.length<2){
+    $('seatMsg').textContent = typed===1 ? 'A table needs at least two names.'
+      : 'Names, comma-separated — two to six of them.';
+    return;
+  }
+  quiz.players=names.map(n=>({name:n,score:0})); quiz.turn=0;
+  $('seatMsg').textContent = typed>6 ? 'Six seats at a table — the rest of the names did not fit.' : '';
+  seatsDirty=false;
+  paintQuiz();
+}
+
 function paintQuiz(){
+  const multi=!!quiz.players;
+  $('quizScore').classList.toggle('hidden',multi);
+  // the seats row is an invitation, not a control panel: gone once play starts
+  $('seatRow').classList.toggle('hidden',quiz.spent.size>0);
+  if(quiz.spent.size===0) $('quizSeats').value=multi?quiz.players.map(p=>p.name).join(', '):(S.names||'');
+  $('quizPlayers').classList.toggle('hidden',!multi);
+  if(multi){
+    $('quizPlayers').innerHTML=quiz.players.map((p,i)=>
+      `<span class="pl${i===quiz.turn?' turn':''}${p.score<0?' neg':''}" role="listitem"
+         ${i===quiz.turn?'aria-current="true"':''}>${esc(p.name)}
+         <b>${(p.score<0?'-$':'$')+Math.abs(p.score).toLocaleString()}</b></span>`).join('');
+  }
   $('quizScore').textContent=(quiz.score<0?'-$':'$')+Math.abs(quiz.score).toLocaleString();
   $('quizScore').classList.toggle('neg',quiz.score<0);
   const g=$('quizGrid');
@@ -1036,27 +1152,65 @@ function paintQuiz(){
 
 function pickTile(key){
   if(quiz.spent.has(key)) return;
+  if(!quiz.players && quiz.spent.size===0 && seatsDirty && seatNames($('quizSeats').value).length>=2) dealSeats();
   const [col,row]=key.split(':').map(Number);
   quiz.cell=key;
   Q=[quiz.cats[col].cards[row]]; idx=0; mode='quiz'; diveCat=null;
   $('tally').innerHTML='';
   $('progFill').style.width='0';
   show('stage'); paint();
-  $('cardCat').textContent=`${quiz.cats[col].name} · $${VALUES[row]}`;
+  const seat=quiz.players?`${quiz.players[quiz.turn].name} · `:'';
+  $('cardCat').textContent=`${seat}${quiz.cats[col].name} · $${VALUES[row]}`;
 }
 
 function scoreTile(right){
   const [,row]=quiz.cell.split(':').map(Number);
+  if(quiz.players){
+    const seat=quiz.players[quiz.turn];
+    seat.score += (right?1:-1)*VALUES[row];
+    quiz.turn=(quiz.turn+1)%quiz.players.length;
+    quiz.spent.add(quiz.cell);
+    if(quiz.spent.size>=quiz.cats.length*VALUES.length) return finishQuiz();
+    paintQuiz(); show('quizView');
+    // announced only after the view is visible — a live region inside
+    // display:none never reaches a screen reader
+    $('turnStatus').textContent=`${seat.name} ${right?'won':'lost'} ${money(VALUES[row])}, now ${money(seat.score)}. ${quiz.players[quiz.turn].name} to pick.`;
+    return;
+  }
   quiz.score += (right?1:-1)*VALUES[row];
   quiz.spent.add(quiz.cell);
   if(quiz.spent.size>=quiz.cats.length*VALUES.length) return finishQuiz();
   paintQuiz(); show('quizView');
 }
 
+const money=n=>(n<0?'-$':'$')+Math.abs(n).toLocaleString();
+
 function finishQuiz(){
-  logSession('board');
+  // solo only: a table game records no personal answers, so it logs no session
+  if(!quiz.players) logSession('board');
   mode='quiz-done';
-  $('scoreNum').innerHTML=(quiz.score<0?'-$':'$')+Math.abs(quiz.score).toLocaleString();
+  $('btnAgain').textContent = quiz.players ? 'Deal the table another board' : 'Another board';
+  if(quiz.players){
+    const order=[...quiz.players].sort((a,b)=>b.score-a.score);
+    const top=order.filter(p=>p.score===order[0].score);
+    const listNames=a=>a.length>2?a.slice(0,-1).join(', ')+', and '+a[a.length-1]:a.join(' and ');
+    if(!quiz.logged&&quiz.spent.size>0){
+      quiz.logged=true;   // "End the board" and a full board must not log twice
+      S.games=(S.games||[]).concat([[today(),quiz.players.map(p=>p.name),quiz.players.map(p=>p.score)]]).slice(-GAMES_MAX);
+      save();
+    }
+    $('scoreNum').innerHTML=money(order[0].score);
+    $('scoreLine').textContent = top.length>1
+      ? `${listNames(top.map(p=>p.name))} split the night.`
+      : `${top[0].name} takes the night.`;
+    $('missedHead').textContent='The table';
+    $('missedHead').classList.remove('hidden');
+    $('missedList').innerHTML=order.map(p=>`<li>${esc(p.name)}<br><b${p.score<0?' class="neg"':''}>${money(p.score)}</b></li>`).join('');
+    $('wagerBox').classList.add('hidden');   // the wager is a solo indulgence
+    show('resultView');
+    return;
+  }
+  $('scoreNum').innerHTML=money(quiz.score);
   $('scoreLine').textContent = quiz.wagered ? (quiz.wonWager?'The wager came in.':'The wager did not come in.')
     : quiz.score>=quiz.cats.length*3000*0.6 ? 'A runaway. Nobody wants to play you.'
     : quiz.score>0 ? 'In the black. That is a real score.'
@@ -1221,6 +1375,11 @@ function submitTyped(){
     // preselect, do not decide: right lands on "got it", the rest on "missed"
     const btn=document.querySelector('#gradeRow '+(v==='right'?'.g2':'.g1'));
     if(btn) btn.focus();
+  }else if(v==='close'){
+    // the judge refused to call it, so no mode gets to auto-mark it wrong —
+    // the card stays up, the verdict stays readable, and a human settles it
+    const btn=document.querySelector('#roundRow .g1');
+    if(btn) btn.focus();
   }else{
     answer(v==='right'?1:0);
   }
@@ -1230,7 +1389,8 @@ function answer(g){
   if(!flipped) return;
   const c=BY_ID[Q[idx]];
   if(!c) return;                 // a keypress landing after the session ended
-  record(c, mode==='drill' ? g>=2 : !!g);
+  // a table game's answers were not all yours, so they stay out of your form
+  if(!(mode==='quiz'&&quiz?.players)) record(c, mode==='drill' ? g>=2 : !!g);
   if(mode==='quiz'){ scoreTile(!!g); return; }
   if(mode==='wager'){ settleWager(!!g); return; }
   if(mode==='drill'){
@@ -1276,7 +1436,7 @@ $('btnNight').onclick=startNight;
 $('btnFlip').onclick=flip;
 $('btnQuit').onclick=()=>{logSession(diveCat?'dive':mode);renderBoard();show('board');};
 $('btnAgain').onclick=()=>{
-  if(mode==='quiz-done') return startQuiz();
+  if(mode==='quiz-done') return startQuiz(quiz?.players?.map(p=>p.name));
   if(night) return night.round>=NIGHT_ROUNDS ? startNight() : startRound();
   startRound();
 };
@@ -1284,7 +1444,10 @@ $('btnBack').onclick=()=>{logSession(mode);renderBoard();show('board');};
 document.querySelectorAll('#gradeRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.g));
 document.querySelectorAll('#roundRow .grade').forEach(b=>b.onclick=()=>answer(+b.dataset.r));
 $('btnLeech').onclick=startLeechDrill;
-$('btnBoardGame').onclick=startQuiz;
+$('btnBoardGame').onclick=()=>startQuiz();
+$('btnDeal').onclick=dealSeats;
+$('quizSeats').oninput=()=>{ seatsDirty=true; };
+$('quizSeats').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); dealSeats(); } };
 $('btnQuizDone').onclick=finishQuiz;
 $('btnStats').onclick=()=>{ renderStats(); show('statsView'); };
 $('btnStatsBack').onclick=()=>{ renderBoard(); show('board'); };
@@ -1310,9 +1473,10 @@ $('btnTyped').onclick=()=>{
   $('btnTyped').setAttribute('aria-pressed',String(!!S.typed));
 };
 $('btnReset').onclick=()=>{
-  if(!confirm('Clear every card\u2019s scheduling and your streak? Cards you added stay. This cannot be undone.')) return;
-  const user=S.user;
-  S=DEFAULT(); S.user=user; save(); buildDeck(); renderBoard();
+  if(!confirm('Clear every card\u2019s scheduling and your streak? Cards you added and the table\u2019s record stay. This cannot be undone.')) return;
+  // the table's record is other people's scores \u2014 a reset of *your* progress spares it
+  const {user,games,names}=S;
+  S=DEFAULT(); Object.assign(S,{user,games,names}); save(); buildDeck(); renderBoard();
 };
 
 /* ---- your own cards ---- */
@@ -1350,6 +1514,7 @@ $('fileImport').onchange=async e=>{
   catch(err){ return ioMsg('That file is not a Last Call backup.'); }
   if(!data||typeof data.sched!=='object') return ioMsg('That file is not a Last Call backup.');
   S={...DEFAULT(),...data};
+  S.games=saneGames(S.games);
   save(); buildDeck(); renderBoard();
   ioMsg('Progress restored.');
 };
@@ -1362,7 +1527,8 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '||e.key==='Enter'){ e.preventDefault(); if(!flipped) flip(); }
   else if(e.key==='Escape'){
     if(mode==='quiz'){ paintQuiz(); show('quizView'); }   // back to the grid, not out of the game
-    else { renderBoard(); show('board'); }
+    // an escaped session still happened — log it, or its tally leaks into the next one
+    else { logSession(diveCat?'dive':mode); renderBoard(); show('board'); }
   }
   else if(flipped&&['1','2','3'].includes(e.key)){
     if(mode==='drill') answer(+e.key);

@@ -1,0 +1,292 @@
+[
+ {
+  "q": "What is the name of the coffee house where the characters of \"Friends\" hang out?",
+  "a": "Central Perk",
+  "d": 1
+ },
+ {
+  "q": "In \"The Simpsons\", where does Homer Simpson work?",
+  "a": "Springfield Nuclear Power Plant",
+  "d": 1
+ },
+ {
+  "q": "Which US sitcom is set at the Dunder Mifflin paper company?",
+  "a": "The Office",
+  "d": 1
+ },
+ {
+  "q": "On what street do the Simpsons live?",
+  "a": "Evergreen Terrace",
+  "d": 1
+ },
+ {
+  "q": "Who played Chandler Bing on \"Friends\"?",
+  "a": "Matthew Perry",
+  "d": 1
+ },
+ {
+  "q": "The Netflix series \"Squid Game\" was made in which country?",
+  "a": "South Korea",
+  "d": 1
+ },
+ {
+  "q": "\"Game of Thrones\" is based on novels by which author?",
+  "a": "George R.R. Martin",
+  "d": 1
+ },
+ {
+  "q": "Who played Sherlock Holmes in the BBC series \"Sherlock\"?",
+  "a": "Benedict Cumberbatch",
+  "d": 1
+ },
+ {
+  "q": "Who played hotel owner Basil in \"Fawlty Towers\"?",
+  "a": "John Cleese",
+  "d": 1
+ },
+ {
+  "q": "\"Frasier\" is a spin-off of which sitcom?",
+  "a": "Cheers",
+  "d": 1
+ },
+ {
+  "q": "Which actor plays the title character in \"Mr. Bean\"?",
+  "a": "Rowan Atkinson",
+  "d": 1
+ },
+ {
+  "q": "In which US city is \"Breaking Bad\" set?",
+  "a": "Albuquerque",
+  "d": 1
+ },
+ {
+  "q": "What is the name of the talking car in \"Knight Rider\"?",
+  "a": "KITT",
+  "d": 1
+ },
+ {
+  "q": "In \"Doctor Who\", what is the name of the Doctor's home planet?",
+  "a": "Gallifrey",
+  "d": 1
+ },
+ {
+  "q": "In \"The Mandalorian\", what is the name of the small green child also known as Baby Yoda?",
+  "a": "Grogu",
+  "d": 1
+ },
+ {
+  "q": "In what underwater city does SpongeBob SquarePants live?",
+  "a": "Bikini Bottom",
+  "d": 1
+ },
+ {
+  "q": "The early seasons of Netflix's \"Narcos\" follow which Colombian drug lord?",
+  "a": "Pablo Escobar",
+  "d": 1
+ },
+ {
+  "q": "In \"Twin Peaks\", the spirit BOB murdered Laura Palmer while possessing which character?",
+  "a": "Leland Palmer",
+  "d": 2
+ },
+ {
+  "q": "In \"Dallas\", who was revealed in 1980 to have shot J.R. Ewing?",
+  "a": "Kristin Shepard",
+  "d": 2
+ },
+ {
+  "q": "In which US city is \"The Wire\" set?",
+  "a": "Baltimore",
+  "d": 2
+ },
+ {
+  "q": "In \"Mad Men\", what is Don Draper's real name?",
+  "a": "Dick Whitman",
+  "d": 2
+ },
+ {
+  "q": "The Australian soap \"Neighbours\" is set on which fictional street?",
+  "a": "Ramsay Street",
+  "d": 2
+ },
+ {
+  "q": "What is the flight number of the plane that crashes in \"Lost\"?",
+  "a": "Oceanic 815",
+  "d": 2
+ },
+ {
+  "q": "In which English city is \"Inspector Morse\" set?",
+  "a": "Oxford",
+  "d": 2
+ },
+ {
+  "q": "Which Journey song plays during the final scene of \"The Sopranos\" in 2007?",
+  "a": "Don't Stop Believin'",
+  "d": 2
+ },
+ {
+  "q": "In \"Better Call Saul\", what is Saul Goodman's real name?",
+  "a": "Jimmy McGill",
+  "d": 2
+ },
+ {
+  "q": "\"Countdown\" was the first programme broadcast on which British channel in 1982?",
+  "a": "Channel 4",
+  "d": 2
+ },
+ {
+  "q": "Who created and hosted the original \"The Twilight Zone\"?",
+  "a": "Rod Serling",
+  "d": 2
+ },
+ {
+  "q": "Which actor played the rumpled detective Columbo?",
+  "a": "Peter Falk",
+  "d": 2
+ },
+ {
+  "q": "The Scandinavian drama \"The Bridge\" opens with a body found on a bridge linking which two countries?",
+  "a": "Denmark and Sweden",
+  "d": 2
+ },
+ {
+  "q": "In \"Doctor Who\", which scientist created the Daleks?",
+  "a": "Davros",
+  "d": 2
+ },
+ {
+  "q": "What is the surname of the family that runs International Rescue in \"Thunderbirds\"?",
+  "a": "Tracy",
+  "d": 2
+ },
+ {
+  "q": "The sitcom \"Father Ted\" is set on which fictional Irish island?",
+  "a": "Craggy Island",
+  "d": 2
+ },
+ {
+  "q": "The reality franchise \"Big Brother\" began in 1999 in which country?",
+  "a": "The Netherlands",
+  "d": 2
+ },
+ {
+  "q": "Who was the original host of the UK version of \"Who Wants to Be a Millionaire?\"?",
+  "a": "Chris Tarrant",
+  "d": 2
+ },
+ {
+  "q": "In what year did the \"M*A*S*H\" finale \"Goodbye, Farewell and Amen\" air?",
+  "a": "1983",
+  "d": 2
+ },
+ {
+  "q": "Which two candidates faced off in the first televised US presidential debate in 1960?",
+  "a": "Kennedy and Nixon",
+  "d": 2
+ },
+ {
+  "q": "Who played President Josiah Bartlet in \"The West Wing\"?",
+  "a": "Martin Sheen",
+  "d": 2
+ },
+ {
+  "q": "In \"Money Heist\", the robbers use code names taken from what?",
+  "a": "Cities",
+  "d": 2
+ },
+ {
+  "q": "In the Japanese series \"Doraemon\", what kind of animal is the robot Doraemon?",
+  "a": "A cat",
+  "d": 2
+ },
+ {
+  "q": "What make and model is Del Boy's yellow three-wheeled van in \"Only Fools and Horses\"?",
+  "a": "Reliant Regal",
+  "d": 3
+ },
+ {
+  "q": "In \"Yes Minister\", which fictional government department does Jim Hacker run?",
+  "a": "Department of Administrative Affairs",
+  "d": 3
+ },
+ {
+  "q": "Who starred as Number Six in the 1967 series \"The Prisoner\"?",
+  "a": "Patrick McGoohan",
+  "d": 3
+ },
+ {
+  "q": "The Home Guard platoon in \"Dad's Army\" defends which fictional seaside town?",
+  "a": "Walmington-on-Sea",
+  "d": 3
+ },
+ {
+  "q": "What is MacGyver's first name, revealed in the original series?",
+  "a": "Angus",
+  "d": 3
+ },
+ {
+  "q": "What is the street address of the Munster family home in \"The Munsters\"?",
+  "a": "1313 Mockingbird Lane",
+  "d": 3
+ },
+ {
+  "q": "In what year did \"Coronation Street\" first air?",
+  "a": "1960",
+  "d": 3
+ },
+ {
+  "q": "The presenting duo Ant and Dec first met as child actors on which BBC teen drama?",
+  "a": "Byker Grove",
+  "d": 3
+ },
+ {
+  "q": "\"All in the Family\" was adapted from which British sitcom?",
+  "a": "Till Death Us Do Part",
+  "d": 3
+ },
+ {
+  "q": "\"Sanford and Son\" was adapted from which British sitcom?",
+  "a": "Steptoe and Son",
+  "d": 3
+ },
+ {
+  "q": "Who played Francis Urquhart in the original 1990 BBC \"House of Cards\"?",
+  "a": "Ian Richardson",
+  "d": 3
+ },
+ {
+  "q": "In \"Red Dwarf\", which crew member exists as a hologram?",
+  "a": "Arnold Rimmer",
+  "d": 3
+ },
+ {
+  "q": "The Italian crime drama \"Gomorrah\" is set in and around which city?",
+  "a": "Naples",
+  "d": 3
+ },
+ {
+  "q": "Roberto Gómez Bolaños, creator and star of \"El Chavo del Ocho\", was better known by what nickname?",
+  "a": "Chespirito",
+  "d": 3
+ },
+ {
+  "q": "The telenovela \"Yo soy Betty, la fea\", which inspired \"Ugly Betty\", was produced in which country?",
+  "a": "Colombia",
+  "d": 3
+ },
+ {
+  "q": "Who won the first season of the US version of \"Survivor\" in 2000?",
+  "a": "Richard Hatch",
+  "d": 3
+ },
+ {
+  "q": "Who played scientist Valery Legasov in the 2019 miniseries \"Chernobyl\"?",
+  "a": "Jared Harris",
+  "d": 3
+ },
+ {
+  "q": "The police-dog series \"Inspector Rex\" originally came from which country?",
+  "a": "Austria",
+  "d": 3
+ }
+]

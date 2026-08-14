@@ -48,7 +48,7 @@
    "style": "Rules, records, and who lifted what",
    "area": "Play",
    "source": "opentdb",
-   "count": 132,
+   "count": 190,
    "file": "decks/sport.json"
   },
   {
@@ -84,7 +84,7 @@
    "style": "Languages, protocols, and the machines",
    "area": "Science",
    "source": "opentdb",
-   "count": 109,
+   "count": 168,
    "file": "decks/comp.json"
   },
   {
@@ -165,7 +165,7 @@
    "style": "Series, casts, and the show that ran too long",
    "area": "Screen",
    "source": "opentdb",
-   "count": 127,
+   "count": 185,
    "file": "decks/tv.json"
   },
   {

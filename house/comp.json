@@ -1,0 +1,297 @@
+[
+ {
+  "q": "Which 19th-century mathematician wrote pioneering notes on Charles Babbage's Analytical Engine and is often called the first computer programmer?",
+  "a": "Ada Lovelace",
+  "d": 1
+ },
+ {
+  "q": "In a web address, what does 'www' stand for?",
+  "a": "World Wide Web",
+  "d": 1
+ },
+ {
+  "q": "Which British computer scientist invented the World Wide Web in 1989?",
+  "a": "Tim Berners-Lee",
+  "d": 1
+ },
+ {
+  "q": "What does HTML stand for?",
+  "a": "HyperText Markup Language",
+  "d": 1
+ },
+ {
+  "q": "In web addresses, what does URL stand for?",
+  "a": "Uniform Resource Locator",
+  "d": 1
+ },
+ {
+  "q": "What does the file format abbreviation PDF stand for?",
+  "a": "Portable Document Format",
+  "d": 1
+ },
+ {
+  "q": "In computing, what does RAM stand for?",
+  "a": "Random Access Memory",
+  "d": 1
+ },
+ {
+  "q": "What name, taken from the first six letters of its top letter row, is given to the standard English keyboard layout?",
+  "a": "QWERTY",
+  "d": 1
+ },
+ {
+  "q": "Which two men founded Microsoft in 1975?",
+  "a": "Bill Gates and Paul Allen",
+  "d": 1
+ },
+ {
+  "q": "Which British mathematician proposed the 'imitation game' test of machine intelligence that bears his name?",
+  "a": "Alan Turing",
+  "d": 1
+ },
+ {
+  "q": "What does HTTP stand for?",
+  "a": "HyperText Transfer Protocol",
+  "d": 1
+ },
+ {
+  "q": "What does the image format GIF stand for?",
+  "a": "Graphics Interchange Format",
+  "d": 1
+ },
+ {
+  "q": "On Windows, which keyboard shortcut is commonly used to undo an action?",
+  "a": "Ctrl + Z",
+  "d": 1
+ },
+ {
+  "q": "The Y2K bug stemmed from software storing years using how many digits?",
+  "a": "Two",
+  "d": 1
+ },
+ {
+  "q": "Which two Stanford students founded Google in 1998?",
+  "a": "Larry Page and Sergey Brin",
+  "d": 1
+ },
+ {
+  "q": "What does the 'S' in HTTPS stand for?",
+  "a": "Secure",
+  "d": 1
+ },
+ {
+  "q": "Which HTTP status code means 'Not Found'?",
+  "a": "404",
+  "d": 1
+ },
+ {
+  "q": "ENIAC, the room-sized electronic computer unveiled in 1946, was built at which US university?",
+  "a": "University of Pennsylvania",
+  "d": 2
+ },
+ {
+  "q": "Which US Navy rear admiral and computing pioneer developed the A-0 compiler?",
+  "a": "Grace Hopper",
+  "d": 2
+ },
+ {
+  "q": "The programming language name COBOL is short for what?",
+  "a": "Common Business-Oriented Language",
+  "d": 2
+ },
+ {
+  "q": "The name of the programming language FORTRAN is short for what two words?",
+  "a": "Formula Translation",
+  "d": 2
+ },
+ {
+  "q": "Which Swiss computer scientist created the Pascal programming language?",
+  "a": "Niklaus Wirth",
+  "d": 2
+ },
+ {
+  "q": "Which programmer created JavaScript at Netscape in 1995?",
+  "a": "Brendan Eich",
+  "d": 2
+ },
+ {
+  "q": "Which Dutch programmer created the Python programming language?",
+  "a": "Guido van Rossum",
+  "d": 2
+ },
+ {
+  "q": "The Python programming language takes its name from which British comedy troupe?",
+  "a": "Monty Python",
+  "d": 2
+ },
+ {
+  "q": "At which British country estate did Alan Turing work on breaking the Enigma cipher during World War II?",
+  "a": "Bletchley Park",
+  "d": 2
+ },
+ {
+  "q": "Microsoft's first product was a BASIC interpreter for which 1975 microcomputer?",
+  "a": "Altair 8800",
+  "d": 2
+ },
+ {
+  "q": "Which British company released the ZX Spectrum home computer in 1982?",
+  "a": "Sinclair Research",
+  "d": 2
+ },
+ {
+  "q": "Which engineer, often called a 'father of the internet', co-designed the TCP/IP protocols with Bob Kahn?",
+  "a": "Vint Cerf",
+  "d": 2
+ },
+ {
+  "q": "Ethernet networking was invented in the 1970s at which Californian research center?",
+  "a": "Xerox PARC",
+  "d": 2
+ },
+ {
+  "q": "In what year did Linus Torvalds first release the Linux kernel?",
+  "a": "1991",
+  "d": 2
+ },
+ {
+  "q": "Which Danish computer scientist created the C++ programming language?",
+  "a": "Bjarne Stroustrup",
+  "d": 2
+ },
+ {
+  "q": "In what year did IBM release its original IBM PC, the model 5150?",
+  "a": "1981",
+  "d": 2
+ },
+ {
+  "q": "Which film director made Apple's famous '1984' television commercial introducing the Macintosh?",
+  "a": "Ridley Scott",
+  "d": 2
+ },
+ {
+  "q": "What does the character-encoding acronym ASCII stand for?",
+  "a": "American Standard Code for Information Interchange",
+  "d": 2
+ },
+ {
+  "q": "The true/false logic used throughout computing is named after which 19th-century English mathematician?",
+  "a": "George Boole",
+  "d": 2
+ },
+ {
+  "q": "Herman Hollerith's punch-card tabulating company became part of which computer giant?",
+  "a": "IBM",
+  "d": 2
+ },
+ {
+  "q": "The Unix operating system was developed starting in 1969 at which research organization?",
+  "a": "Bell Labs",
+  "d": 2
+ },
+ {
+  "q": "Bluetooth technology is named after 10th-century king Harald 'Bluetooth' Gormsson, who united the tribes of which country into a single kingdom?",
+  "a": "Denmark",
+  "d": 2
+ },
+ {
+  "q": "The stored-program computer architecture is named after which Hungarian-American mathematician?",
+  "a": "John von Neumann",
+  "d": 2
+ },
+ {
+  "q": "Tim Berners-Lee developed the World Wide Web while working at which European physics laboratory?",
+  "a": "CERN",
+  "d": 2
+ },
+ {
+  "q": "Which British engineer built Colossus, the wartime codebreaking computer at Bletchley Park?",
+  "a": "Tommy Flowers",
+  "d": 3
+ },
+ {
+  "q": "German engineer Konrad Zuse completed which programmable computer in 1941?",
+  "a": "Z3",
+  "d": 3
+ },
+ {
+  "q": "Which computer scientist created the LISP programming language in the late 1950s?",
+  "a": "John McCarthy",
+  "d": 3
+ },
+ {
+  "q": "Which Xerox PARC researcher led the creation of the Smalltalk programming language?",
+  "a": "Alan Kay",
+  "d": 3
+ },
+ {
+  "q": "Which linguist-turned-programmer created the Perl programming language?",
+  "a": "Larry Wall",
+  "d": 3
+ },
+ {
+  "q": "What was the name of the 1993 NCSA web browser that helped popularize the World Wide Web?",
+  "a": "Mosaic",
+  "d": 3
+ },
+ {
+  "q": "In internet standards, what does RFC stand for?",
+  "a": "Request for Comments",
+  "d": 3
+ },
+ {
+  "q": "HTTPS traffic uses which port by default?",
+  "a": "443",
+  "d": 3
+ },
+ {
+  "q": "The 1948 experimental stored-program computer nicknamed the 'Baby' was built in which English city?",
+  "a": "Manchester",
+  "d": 3
+ },
+ {
+  "q": "What devilish retail price did the Apple I computer carry in 1976?",
+  "a": "$666.66",
+  "d": 3
+ },
+ {
+  "q": "What was the model number of Intel's pioneering 4-bit microprocessor released in 1971?",
+  "a": "4004",
+  "d": 3
+ },
+ {
+  "q": "Which computer scientist, author of 'The Art of Computer Programming', created the TeX typesetting system?",
+  "a": "Donald Knuth",
+  "d": 3
+ },
+ {
+  "q": "Whose 1948 paper 'A Mathematical Theory of Communication' founded information theory?",
+  "a": "Claude Shannon",
+  "d": 3
+ },
+ {
+  "q": "Which European rocket exploded on its 1996 maiden flight because of a software integer overflow?",
+  "a": "Ariane 5",
+  "d": 3
+ },
+ {
+  "q": "Which Intel processor line was recalled in 1994 over the FDIV floating-point division bug?",
+  "a": "Pentium",
+  "d": 3
+ },
+ {
+  "q": "The 'ILOVEYOU' email worm of 2000 originated in which country?",
+  "a": "Philippines",
+  "d": 3
+ },
+ {
+  "q": "The BASIC programming language was created in 1964 at which US college?",
+  "a": "Dartmouth",
+  "d": 3
+ },
+ {
+  "q": "What was the name of Joseph Weizenbaum's 1966 chatbot that mimicked a psychotherapist?",
+  "a": "ELIZA",
+  "d": 3
+ }
+]
