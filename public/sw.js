@@ -1,9 +1,10 @@
 /* Offline for a bar with bad wifi.
 
    The shell is network-first so a deploy actually reaches you, falling back to
-   cache when there is no signal. Deck files are cache-first because they are
-   large, they change rarely, and a deck you have opened once should still be
-   there in the basement.
+   cache when there is no signal. Deck files are stale-while-revalidate: the
+   cached copy answers instantly and still works in the basement, but the
+   network refreshes it in the background so new cards reach you one visit
+   after a deploy instead of never.
 
    Bump CACHE when the shell changes shape enough that a stale copy would be
    wrong; old caches are dropped on activate either way.
@@ -32,15 +33,17 @@ self.addEventListener('fetch', e => {
   if (url.origin !== self.location.origin) return;     // fonts and anything else stay on the network
 
   const isDeck = url.pathname.includes('/decks/');
-  e.respondWith(isDeck ? cacheFirst(req) : networkFirst(req));
+  e.respondWith(isDeck ? staleWhileRevalidate(req) : networkFirst(req));
 });
 
-async function cacheFirst(req) {
+async function staleWhileRevalidate(req) {
   const hit = await caches.match(req);
-  if (hit) return hit;
-  const res = await fetch(req);
-  if (res.ok) (await caches.open(CACHE)).put(req, res.clone());
-  return res;
+  const refresh = fetch(req).then(async res => {
+    if (res.ok) (await caches.open(CACHE)).put(req, res.clone());
+    return res;
+  });
+  if (hit) { refresh.catch(() => {}); return hit; }
+  return refresh;
 }
 
 async function networkFirst(req) {
