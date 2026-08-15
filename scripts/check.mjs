@@ -227,14 +227,19 @@ try {
 
   ok('stats: the category bars are drawn', await ev(`document.querySelectorAll('#statsBody .mark').length>=1`));
   ok('stats: weakest category first', await ev(`(()=>{
-    const vals=[...document.querySelectorAll('#statsBody .mark')].map(m=>+m.getAttribute('width'));
+    const vals=[...document.querySelectorAll('#statsBody .mark')].map(m=>+m.dataset.pct);
     return vals.every((v,i)=>i===0||vals[i-1]<=v);})()`));
-  ok('stats: every mark carries its own tooltip', await ev(`
-    [...document.querySelectorAll('#statsBody .mark, #statsBody .cell')].every(m=>m.querySelector('title'))`));
+  /* The bars are text now, so the numbers are content a screen reader reads
+     rather than a tooltip bolted onto a rectangle. The heatmap is still a
+     drawing and still has to caption every square. */
+  ok('stats: every bar states its own numbers in text', await ev(`
+    [...document.querySelectorAll('#statsBody .bar-row')].every(r=>/\\d+% · \\d+ asked/.test(r.textContent))`));
+  ok('stats: every square of the heatmap carries its own tooltip', await ev(`
+    [...document.querySelectorAll('#statsBody .cell')].every(m=>m.querySelector('title'))`));
   ok('stats: the heatmap has a square for today', await ev(`
     [...document.querySelectorAll('#statsBody .cell title')].some(t=>t.textContent.includes(new Date(today()*86400000).toISOString().slice(0,10)))`));
-  ok('stats: charts are inline svg, not images', await ev(`
-    document.querySelectorAll('#statsBody svg').length>=2 && document.querySelectorAll('#statsBody img').length===0`));
+  ok('stats: what is drawn is inline svg, not images', await ev(`
+    document.querySelectorAll('#statsBody svg').length>=1 && document.querySelectorAll('#statsBody img').length===0`));
   ok('stats: each chart describes itself for a screen reader', await ev(`
     [...document.querySelectorAll('#statsBody svg')].every(s=>(s.getAttribute('aria-label')||'').length>20)`));
   ok('stats: one hue only — no chart invents a second colour', await ev(`(()=>{
@@ -249,6 +254,9 @@ try {
             document.getElementById('btnStats').click()`);
   ok('stats: a round counts toward accuracy too', await ev('(S.hist||[]).length===2'));
   ok('stats: two sessions draw the line', await ev(`!!document.querySelector('#statsBody .line')`));
+  // only now are both drawings on screen — before the second session there is no line to draw
+  ok('stats: and both drawings are inline svg', await ev(`
+    document.querySelectorAll('#statsBody svg').length>=2 && document.querySelectorAll('#statsBody img').length===0`));
   ok('stats: but only the drill moved the schedule',
      await ev(`Object.keys(S.sched).length <= 9`));
   await ev(`document.getElementById('btnStatsBack').click()`);
@@ -374,6 +382,64 @@ try {
   ok('keys: escape leaves the session', await ev(`
     document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
     document.getElementById('board').classList.contains('live')`));
+
+  /* --- the phone. This is played standing up in a bar, so the checks that
+     matter are measured at a phone's width, not asserted from the CSS. */
+  const phone = on => on
+    ? send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 3, mobile: true })
+    : send('Emulation.clearDeviceMetricsOverride');
+  await reset(); await phone(true); await nav();
+
+  ok('phone: the board does not scroll sideways', await ev(
+    `document.documentElement.scrollWidth <= window.innerWidth + 1`));
+  ok('phone: the due count survives — it is the reason to read the row', await ev(`(()=>{
+    const d=document.querySelector('.tap-due');
+    return !!d && d.offsetWidth+d.offsetHeight>0;})()`));
+  /* The mastery bar was an inline span, so its height was ignored and it drew
+     nothing at any width. A bar that is not a box is not a bar. */
+  ok('phone: the mastery bar is actually a box', await ev(`(()=>{
+    const r=document.querySelector('.tap-bar').getBoundingClientRect();
+    return r.width>20 && r.height>=4;})()`));
+
+  /* Every visible control has to be thumb-sized. Named by nothing, so it covers
+     controls that do not exist yet. */
+  const tiny = async where => ev(`(()=>{
+    return [...document.querySelectorAll('button, a[href], input, summary, [tabindex]')]
+      .filter(el=>el.offsetWidth+el.offsetHeight>0 && !el.disabled)
+      .filter(el=>{const r=el.getBoundingClientRect(); return Math.min(r.width,r.height) < 44;})
+      .map(el=>el.id||el.className||el.tagName).slice(0,8);
+  })()`).then(list => { ok(`phone: every control on the ${where} is thumb-sized`, list.length === 0);
+    if (list.length) console.log('        under 44px: ' + list.join(', ')); });
+  await tiny('board');
+
+  await ev(`document.getElementById('btnDrill').click();
+            (()=>{ for(let i=0;i<12;i++){ if(!flipped) flip(); answer(i%3?2:1); } })();
+            document.getElementById('btnQuit').click();
+            document.getElementById('btnRound').click();
+            (()=>{ for(let i=0;i<10;i++){ if(!flipped) flip(); answer(1); } })();
+            document.getElementById('btnBack').click();
+            document.getElementById('btnStats').click()`);
+  await tiny('form guide');
+  /* A drawing that contains text must never be scaled down: at 100% of a phone
+     from a 640-unit box, 9.5px labels were landing at about 5px. */
+  const scaled = await ev(`[...document.querySelectorAll('#statsBody svg')].map(s=>{
+    const vb=(s.getAttribute('viewBox')||'0 0 1 1').split(/\\s+/).map(Number);
+    return +(s.getBoundingClientRect().width / vb[2]).toFixed(3);
+  })`);
+  ok(`phone: no chart is scaled below its own type size (${scaled.join(', ')})`,
+     scaled.length > 0 && scaled.every(s => s >= 0.95));
+  ok('phone: the category bars are text, so they wrap instead of shrinking', await ev(`
+    document.querySelectorAll('#statsBody .bar-row').length>=1
+    && document.querySelectorAll('#statsBody .bar-row svg').length===0`));
+  await ev(`document.getElementById('btnStatsBack').click()`);
+  await tiny('board after a session');
+
+  await ev(`document.getElementById('btnBoardGame').click()`);
+  ok('phone: the game grid keeps its swipe to itself', await ev(`
+    getComputedStyle(document.querySelector('.grid-wrap')).overscrollBehaviorX==='contain'`));
+  await ev(`document.getElementById('btnQuizDone').click(); document.getElementById('btnBack').click()`);
+
+  await phone(false); await reset(); await nav();
 
   // --- installable, and usable with the wifi off
   await reset(); await nav();
