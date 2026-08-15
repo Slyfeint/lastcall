@@ -4,11 +4,11 @@ A spaced-repetition drill for pub trivia. It targets the categories a team habit
 
 **[lastcall-kappa.vercel.app](https://lastcall-kappa.vercel.app)**
 
-Static site. No framework, no bundler, no backend, no accounts. Progress lives in your browser and nothing is sent anywhere.
+Static site. No framework, no bundler, no backend, no accounts. Progress lives in your browser and nothing is sent anywhere. Several people can share one phone — see [Whose turn it is](#whose-turn-it-is) — but that is a switch on the device, not a sign-in.
 
 ## What it does
 
-**Drill** — the scheduler picks what is due, twenty per sitting. Grade yourself missed / got it / easy, or switch on **Type the answers** and write them out. The judge forgives accents, case, punctuation, articles, plurals, "what is…" phrasing and one typo in a long word; when you give half of a two-part answer it says *close* and leaves the grade to you rather than deciding on your behalf.
+**Drill** — the scheduler picks what is due, twenty per sitting. Grade yourself missed / got it / easy, or switch on **Type the answers** and write them out. The judge forgives accents, case, punctuation, articles, plurals, "what is…" phrasing and one typo in a long word; when you give half of a two-part answer it says *close* and leaves the grade to you rather than deciding on your behalf. It ends by telling you what it did to your schedule — what went to bed, what comes round again today, when the next one is due. Not a score: grading yourself *easy* is not getting something right.
 
 **The shelf** — twenty-three more categories beyond the house deck, fetched only when you switch one on. Search across the lot; each area shows a dozen until you ask for more.
 
@@ -18,9 +18,17 @@ Static site. No framework, no bundler, no backend, no accounts. Progress lives i
 
 **Play the whole night** — six rounds of ten with a scorecard between them, which is the shape a real Thursday has.
 
-**The form guide** — one readiness number with its arithmetic printed underneath, thirteen weeks of drilling as a heatmap, accuracy session by session and category by category, and the cards that have beaten you five times.
+**The form guide** — one readiness number with its arithmetic printed underneath, thirteen weeks of drilling as a heatmap, accuracy session by session and category by category, and the cards that have beaten you five times. Every category bar is a button that drills it, because knowing your weakest subject and then having to go and find it was the long way round.
 
-Games are games: a round, a board and a night never touch the schedule you have built up. Only a drill does.
+Games are games: a round, a board and a night never touch the schedule you have built up. Only a drill does. The board says so under every button.
+
+### Whose turn it is
+
+A table shares one phone, so the drill knows whose it is. Hit **Someone else's turn**, put in a name, and they get their own schedule, streak, history and typing preference. Tap a chip to hand it back.
+
+What everybody shares, and why: the cards you add, because a card's id is a hash of its question and the deck has to be identical for everybody or an id stops meaning the same card; which categories are switched on, because a switch would otherwise need a refetch and this has to work in a basement; and the table's record from the board game, because those were always other people's scores. Clearing progress clears whoever is holding the phone and leaves everybody else alone. A backup is the whole phone.
+
+None of this is an account. There is no sign-in, no server and no network call — it is a switch on your own device, and a backup is still a file you carry yourself. Somebody who never hands the phone over sees nothing new at all.
 
 ## Run it
 
@@ -41,7 +49,9 @@ npm run perf               # cold load and big-deck timings, CPU throttled
 open public/index.html?selftest   # in-page assertions, prints PASS/FAIL
 ```
 
-`scripts/check.mjs` drives real Chrome over CDP: reload persistence, the schedule migration, lazy deck loading, search, typed-answer judging, the board and the wager, the night, offline with the network cut, the stats arithmetic, contrast computed from the painted colours, and keyboard-only play. Roughly 150 assertions, each one demonstrated failing before it was trusted.
+`scripts/check.mjs` drives real Chrome over CDP: reload persistence, the schedule migration, lazy deck loading, search, typed-answer judging, the board and the wager, the night, the table and its hot seat, switching between people, offline with the network cut, the stats arithmetic, contrast computed from the painted colours and composited through opacity, layout measured at a phone's width, and keyboard-only play. Roughly 260 assertions, each one demonstrated failing before it was trusted.
+
+Two of them were not, for a while. The per-area cap walked for the wrong element and counted nought for every area on the board, and the contrast loop read a text colour without its opacity — so a switched-off row was reported at 6.16:1 while it painted at 2.63:1. Both are fixed, and both were demonstrated failing afterwards.
 
 ## The content rule
 
@@ -55,9 +65,12 @@ Contested answers keep the trap in the note field — Nile vs. Amazon, Abbey Roa
 
 | Source | Licence | Notes |
 |---|---|---|
-| Hand-written originals | this repo, MIT | The house deck, 209 cards |
+| Hand-written originals | this repo, MIT | The house deck, 714 cards across 9 categories |
+| Hand-written for the shelf | this repo, MIT | 1,426 more across 14 thin categories, folded in at build time from `house/` |
 | [Open Trivia Database](https://opentdb.com/) | CC BY-SA 4.0 | 3,719 verified questions across 22 categories |
 | The periodic table | facts | All 118 symbols, from a table that fails its own build if it is wrong |
+
+5,977 cards in all. Every category clears 150, so a night's drilling does not come round twice.
 
 Deck content sourced under CC BY-SA 4.0 stays under CC BY-SA 4.0. The code is MIT.
 

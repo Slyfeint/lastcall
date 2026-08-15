@@ -4,7 +4,7 @@ Working file. Each loop iteration: pick the topmost unchecked item, do it, verif
 
 **Repo:** `C:\Users\coliv\lastcall` → public `Slyfeint/lastcall` → Vercel.
 **Shape:** static, no framework, no bundler. Plain HTML + ES modules + JSON decks. Node scripts for deck building only, run by hand, never at request time.
-**Progress:** local-first. localStorage, JSON export/import. No accounts, no backend.
+**Progress:** local-first. localStorage, JSON export/import. No accounts, no backend. Several people can share a phone, which is a switch on the device and not a sign-in — see "Not doing".
 
 ## Decisions already made
 
@@ -70,8 +70,28 @@ This blocks everything after it. Today a card's id is `'k' + index`, so regenera
 - [x] performance measured, not assumed: cold load on a 4x-throttled phone paints the board in ~830 ms over 89 KB in 3 requests. The 8,000-card deck exposed an O(categories x cards) redraw — 602 ms, now 37 ms via a category index
 - [x] every push verified against the deployed URL with the same suite, never assumed — it caught the broken Vercel build that 404'd every deck
 
+## Phase 6 — the decks are deep enough, so fix the interface
+
+Eleven categories sat under 90 cards, which is what made a night come round twice.
+
+- [x] 1,431 hand-written cards in `house/<id>.json`, folded in by the OpenTDB build through the same lint and dedupe so a refetch can never lose them; every deck clears 150
+- [x] 505 more in the house deck, taking its nine categories from ~23 each to ~80
+- [x] decks revalidate in the service worker: they were cache-first, which pinned every deck and the manifest to the copy from your first visit, so new cards reached a returning browser never
+
+## Phase 7 — the interface catches up with the decks
+
+- [x] two checks that were passing on nothing: the per-area cap walked `.tap` when every row is wrapped in `.tap-row`, and the contrast loop could not see opacity, translucent backgrounds or svg fill. It was reporting a switched-off row at 6.16:1 while it painted at 2.63:1, and the zero due count at 1.57:1. Fixed by deleting the opacity, not by lowering the bar
+- [x] design system: one red that is legible at 4.89:1 and the 2.69:1 one deleted, the three grades carrying their meaning at rest instead of on `:hover` a phone never has, no tint behind coloured text, seven mono sizes down to three, the section label declared once instead of four times, the heat ramp merged out of its own second `:root`, and every hover rule behind `@media(hover:hover)`
+- [x] mobile, measured at 390px rather than argued from the CSS: the due count back, category accuracy as text that wraps instead of a drawing scaled to half size, no chart with type in it ever scaled below 0.95, 44px on every visible control, the game grid keeping its own sideways swipe, and 16px on the two fields iOS zooms into. Found that the mastery bar was an inline span and had never drawn at any width
+- [x] the drill ends on something. It reports what it did to your schedule — never a score, because grading yourself *easy* is not getting it right and a missed card is asked twice in the same sitting. Kept in a Map that dies with the sitting rather than a field on `S`
+- [x] the form guide can be acted on: every category bar drills that category, and the sticking points drill themselves
+- [x] typing never moves other people's money — Enter on an empty box used to take a tile off a named person with no appeal — and the stake row says what the tile is worth instead of "+1"
+- [x] the board explains itself: modes grouped with a caption each, games marked as leaving your schedule alone, a disabled control saying why where it is, one first-run paragraph derived from whether anything was ever drilled, and the tagline no longer overwritten by an inventory count one frame after it appears
+- [x] several people, one phone: personal schedule/history/streak/typing, shared cards, decks and table record, one atomic key, `S` unchanged in shape, and a v3→v4 migration with the v1 chain still intact
+
 ## Not doing
 
-- accounts, leaderboards, any backend
+- accounts, leaderboards, any backend. Local profiles are not an exception to this: there is no sign-in, no server and no network call, nothing is sent anywhere, and a backup is still a file you carry yourself. The test for whether something crosses the line is whether it leaves the device, not whether it has a name on it
+- cross-device sync, which would need a merge basis `S` does not have — no device id, no per-field mtime, no counter. Restore is whole-blob and last-write-wins, and honest about it
 - a framework or a bundler
 - shipping Jeopardy clues to the public site
