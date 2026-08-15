@@ -331,6 +331,40 @@ try {
 
   // keyboard alone must get you through a card
   await ev(`document.getElementById('btnDrill').click()`);
+
+  /* The three grades must be told apart without a pointer. They used to differ
+     only on :hover, which on the device this is played on is never. */
+  const grades = await ev(`(()=>{
+    /* Each grade's own left border is still the plain rule colour, so it is the
+       honest baseline for "did this button get a colour of its own". */
+    const g=s=>{const cs=getComputedStyle(document.querySelector(s));
+      return {top:cs.borderTopColor, base:cs.borderLeftColor};};
+    return {g1:g('#gradeRow .g1'), g2:g('#gradeRow .g2'), g3:g('#gradeRow .g3')};
+  })()`);
+  ok('design: each grade carries its own colour with no pointer involved',
+     new Set([grades.g1.top, grades.g2.top, grades.g3.top]).size === 3);
+  ok('design: and none of them is left at the plain rule colour',
+     [grades.g1, grades.g2, grades.g3].every(g => g.top !== g.base));
+  ok('design: no verdict paints a tint behind its own text', await ev(`
+    ['right','close','wrong'].every(k=>{
+      const el=document.getElementById('verdict');
+      el.className='verdict '+k;
+      const bg=getComputedStyle(el).backgroundColor;
+      return /rgba\\(0, 0, 0, 0\\)|transparent/.test(bg);
+    })`));
+  /* Walks into the media rules: checking only the top level passed no matter
+     which query wrapped them, which is a check that cannot fail. */
+  ok('design: every hover rule sits behind a pointer query', await ev(`(()=>{
+    const bad=[];
+    const walk=(rules,cond)=>{ for(const r of rules){
+      if(r.type===CSSRule.MEDIA_RULE) walk(r.cssRules, cond+' '+r.conditionText);
+      else if(r.type===CSSRule.STYLE_RULE && /:hover/.test(r.selectorText||'')
+              && !/hover\\s*:\\s*hover/.test(cond)) bad.push(r.selectorText);
+    }};
+    walk([...document.styleSheets].find(s=>!s.href).cssRules,'');
+    window.__ungated=bad;
+    return bad.length===0;
+  })()`));
   ok('keys: space flips the card', await ev(`
     document.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true})); flipped===true`));
   ok('keys: a number grades it', await ev(`
