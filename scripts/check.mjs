@@ -535,6 +535,51 @@ try {
   ok('wager: losing it costs the bet', await ev(`quiz.score===0`));
   ok('wager: and it is not offered twice', !(await visible('wagerBox')));
 
+  // --- the board says what each mode does, and introduces itself once
+  await reset(); await nav();
+  ok('board: every mode carries a caption saying what it does', await ev(`
+    [...document.querySelectorAll('.mode')].filter(m=>m.offsetHeight>0)
+      .every(m=>(m.querySelector('.cap')?.textContent||'').trim().length>15)`));
+  ok('board: the games are grouped and say they leave your schedule alone', await ev(`
+    /leave your schedule alone/.test(document.querySelector('.games-head').textContent)`));
+  ok('board: the tagline survives the shelf count landing', await ev(`
+    /categories your table keeps punting on/.test(document.getElementById('subline').textContent)`));
+  ok('board: and the shelf count is still on screen somewhere', await ev(`(()=>{
+    const el=document.getElementById('shelfNote');
+    return el.offsetHeight===0 || /on the shelf/.test(el.textContent);})()`));
+  ok('board: a first-timer gets told what this is', await ev(`
+    document.getElementById('firstRun').offsetHeight>0`));
+  // it belongs to the board, not to every view the board happens to be behind
+  ok('board: and it is not still there mid-card', await ev(`
+    document.getElementById('btnDrill').click();
+    const gone=document.getElementById('firstRun').offsetHeight===0;
+    document.getElementById('btnQuit').click(); gone`));
+  ok('board: the sticking-points count does not eat its own caption', await ev(`(()=>{
+    S.sched={}; DECK.slice(0,3).forEach(c=>S.sched[c.id]=[1,2.5,today(),3,5]);
+    renderBoard();
+    const m=document.getElementById('modeLeech');
+    return m.offsetHeight>0 && /beaten you five times/.test(m.querySelector('.cap').textContent)
+           && /\\(3\\)/.test(document.getElementById('leechN').textContent);})()`));
+
+  // a disabled control states its reason where the control is
+  await ev(`S=DEFAULT(); CATS.forEach(c=>{ if(isHouseCat(c.id)) S.off.push(c.id); }); renderBoard()`);
+  ok('board: a disabled drill says why in its own caption', await ev(`
+    document.getElementById('btnDrill').disabled
+    && /nothing is due/.test(document.getElementById('capDrill').textContent)`));
+  ok('board: and so does a board with too few categories', await ev(`
+    document.getElementById('btnBoardGame').disabled
+    && /needs two categories/.test(document.getElementById('capBoard').textContent)`));
+
+  await reset(); await nav();
+  await ev(`document.getElementById('btnDrill').click();
+            (()=>{ if(!flipped) flip(); answer(2); })();
+            document.getElementById('btnQuit').click()`);
+  ok('board: and never introduces itself again once you have drilled', await ev(`
+    document.getElementById('firstRun').offsetHeight===0`));
+  await ev('flush()'); await nav();
+  ok('board: not after a reload either', await ev(`
+    document.getElementById('firstRun').offsetHeight===0`));
+
   /* --- the drill has an ending. It is the primary action and the only mode
      that used to finish by silently dropping you back on the board. */
   await reset(); await nav();

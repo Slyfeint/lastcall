@@ -80,6 +80,10 @@ h1 em{font-style:normal;color:var(--amber)}
 .notice{font-family:var(--mono);font-size:var(--m);letter-spacing:.05em;color:var(--foam);
   border-left:3px solid var(--amber);padding:9px 12px;margin:-18px 0 26px}
 .notice.bad{border-left-color:var(--wrong)}
+.first-run{font-family:var(--body);font-size:15px;color:var(--foam-dim);line-height:1.6;
+  max-width:640px;margin:-18px 0 26px}
+.first-run b{color:var(--foam);font-weight:600}
+.shelf-note{display:block;margin-bottom:10px;color:var(--copper)}
 .subline{font-family:var(--mono);font-size:var(--m);letter-spacing:.16em;text-transform:uppercase;
   color:var(--foam-dim);margin-bottom:30px}
 
@@ -89,6 +93,19 @@ h1 em{font-style:normal;color:var(--amber)}
 .panel-title{font-family:var(--disp);font-size:22px;text-transform:uppercase;letter-spacing:.04em}
 .panel-note{font-family:var(--mono);font-size:var(--m);color:var(--foam-dim);letter-spacing:.05em}
 .actions{display:flex;gap:12px;flex-wrap:wrap}
+/* Six buttons in one undifferentiated row asked you to choose between five
+   modes with nothing to choose on. Each one says what it does to your
+   schedule, which is the only difference that matters. */
+.modes{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+.mode{display:flex;flex-direction:column;gap:6px;flex:1 1 210px;min-width:0}
+/* One height for every button in a row, so a two-line label does not push its
+   own caption out of line with the others. */
+.mode .btn{width:100%;min-height:58px;display:flex;align-items:center;justify-content:center}
+.mode .cap{line-height:1.5;text-transform:none;letter-spacing:.04em;font-size:var(--m)}
+.games-head{margin:22px 0 10px;padding-top:16px;border-top:1px solid var(--rule)}
+.panel-foot{display:flex;gap:12px;flex-wrap:wrap;align-items:center;
+  margin-top:22px;padding-top:16px;border-top:1px solid var(--rule)}
+.mode .btn:disabled+.cap{color:var(--amber)}
 .btn{font-family:var(--disp);font-size:19px;text-transform:uppercase;letter-spacing:.05em;
   padding:11px 22px;border:1.5px solid var(--foam);transition:background .14s,color .14s,border-color .14s}
 .btn-go{background:var(--amber);border-color:var(--amber);color:var(--stout)}
@@ -326,10 +343,8 @@ h1 em{font-style:normal;color:var(--amber)}
   .list-head span:nth-child(2){display:none}
   .face{padding:26px 20px}
   .card{grid-template-columns:40px 1fr;min-height:300px}
-  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .actions .btn,.actions .toggle{width:100%}
-  #btnDrill{grid-column:1/-1}
   .btn{font-size:17px;padding:13px 16px}
+  .mode{flex:1 1 100%}
   .quiz-head{flex-wrap:wrap}
   /* keyboard hints on a device with no keyboard cost a whole row */
   .keys{display:none}
@@ -363,18 +378,45 @@ h1 em{font-style:normal;color:var(--amber)}
 
   <!-- BOARD -->
   <div class="board live" id="board">
+    <p class="first-run hidden" id="firstRun">Nine categories are switched on and nothing is scheduled yet, so
+      every card is one you have not seen. Start a drill and grade yourself honestly — missed cards come back
+      today, easy ones vanish for weeks. Twenty-three more categories are on the shelf below; tap a row to
+      switch one on, or <b>Dive</b> to drill it on its own without changing what is on for tonight.</p>
+
     <div class="panel">
       <div class="panel-head">
         <div class="panel-title">Tonight's session</div>
         <div class="panel-note" id="sessionNote"></div>
       </div>
-      <div class="actions">
-        <button class="btn btn-go" id="btnDrill">Start drill</button>
-        <button class="btn" id="btnRound">Run a round of 10</button>
-        <button class="btn" id="btnNight">Play the whole night</button>
-        <button class="btn hidden" id="btnLeech">Sticking points</button>
-        <button class="btn" id="btnBoardGame">Play a board — solo or as a table</button>
-        <button class="btn" id="btnStats">The form guide</button>
+      <div class="modes">
+        <div class="mode">
+          <button class="btn btn-go" id="btnDrill">Start drill</button>
+          <span class="cap" id="capDrill">the only one that moves your schedule</span>
+        </div>
+        <div class="mode hidden" id="modeLeech">
+          <button class="btn" id="btnLeech">Sticking points <span id="leechN"></span></button>
+          <span class="cap">the cards that have beaten you five times</span>
+        </div>
+      </div>
+
+      <div class="games-head cap">Games — scored, and they leave your schedule alone</div>
+      <div class="modes">
+        <div class="mode">
+          <button class="btn" id="btnRound">Run a round of 10</button>
+          <span class="cap">ten questions, for warming up in the car</span>
+        </div>
+        <div class="mode">
+          <button class="btn" id="btnNight">Play the whole night</button>
+          <span class="cap">six rounds and a scorecard, the shape of a Thursday</span>
+        </div>
+        <div class="mode">
+          <button class="btn" id="btnBoardGame">Play a board</button>
+          <span class="cap" id="capBoard">six categories, five clues — solo or pass the phone round a table</span>
+        </div>
+      </div>
+
+      <div class="panel-foot">
+        <button class="btn btn-sm" id="btnStats">The form guide</button>
         <button class="toggle" id="btnTyped" aria-pressed="false">Type the answers</button>
       </div>
     </div>
@@ -385,6 +427,8 @@ h1 em{font-style:normal;color:var(--amber)}
              aria-label="Search categories">
       <span class="search-count" id="searchCount"></span>
     </div>
+
+    <div class="cap shelf-note hidden" id="shelfNote"></div>
 
     <div class="list-head">
       <span>On tap — tap a row to include or drop it</span>
@@ -886,15 +930,34 @@ function renderBoard(){
     `<b>${S.streak||0}</b> day streak · <b>${S.answered||0}</b> answered all-time`;
 
   if(deckTrouble) notice(deckTrouble,true);
-  if(shelf) $('subline').textContent=`${shelf.toLocaleString()} more cards on the shelf — switch a category on`;
+  /* The shelf count used to be written over the tagline, which is the one line
+     telling a stranger what this is for — it survived about one frame. */
+  $('shelfNote').classList.toggle('hidden',!shelf);
+  if(shelf) $('shelfNote').textContent=`${shelf.toLocaleString()} more cards on the shelf — tap a row to switch one on`;
 
   $('sessionNote').textContent = due||fresh
     ? `${due} due for review · ${fresh} you haven't seen · 20 per sitting`
-    : 'Nothing due. Run a round of 10, or switch on a category.';
+    : 'Nothing due today.';
+  /* A disabled control says why in its own caption. btnDrill explained itself
+     three hundred pixels away and btnBoardGame did not explain itself at all —
+     it just went to 35% opacity. */
   $('btnDrill').disabled = !(due||fresh);
-  $('btnBoardGame').disabled = eligibleCats().length<2;
-  $('btnLeech').classList.toggle('hidden',!leeches);
-  $('btnLeech').textContent=`Sticking points (${leeches})`;
+  $('capDrill').textContent = due||fresh
+    ? 'the only one that moves your schedule'
+    : 'nothing is due — a round of 10 still works';
+  const eligible=eligibleCats().length;
+  $('btnBoardGame').disabled = eligible<2;
+  $('capBoard').textContent = eligible>=2
+    ? 'six categories, five clues — solo or pass the phone round a table'
+    : 'needs two categories with five cards each switched on';
+  $('modeLeech').classList.toggle('hidden',!leeches);
+  // the count lives in its own span, or setting textContent would eat the caption
+  $('leechN').textContent=`(${leeches})`;
+
+  /* Said once, to somebody who has never drilled anything, and never again.
+     Derived rather than stored: a dismissal flag is a field on S forever. */
+  const started=(S.hist||[]).length||S.answered;
+  $('firstRun').classList.toggle('hidden',!!started);
 
   /* At 23 decks a flat list is fine; with the local Jeopardy build it is 800,
      so each area shows a dozen until you ask for more, and search cuts across
