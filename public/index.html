@@ -84,6 +84,11 @@ h1 em{font-style:normal;color:var(--amber)}
   max-width:640px;margin:-18px 0 26px}
 .first-run b{color:var(--foam);font-weight:600}
 .shelf-note{display:block;margin-bottom:10px;color:var(--copper)}
+.who{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.who-chip{font-family:var(--mono);font-size:var(--m);letter-spacing:.06em;text-transform:uppercase;
+  padding:10px 14px;min-height:44px;border:1px solid var(--rule);color:var(--foam-dim)}
+.who-chip[aria-pressed="true"]{border-color:var(--amber);color:var(--stout);background:var(--amber)}
+#whoAddRow{margin-bottom:14px;max-width:420px}
 .subline{font-family:var(--mono);font-size:var(--m);letter-spacing:.16em;text-transform:uppercase;
   color:var(--foam-dim);margin-bottom:30px}
 
@@ -378,6 +383,13 @@ h1 em{font-style:normal;color:var(--amber)}
 
   <!-- BOARD -->
   <div class="board live" id="board">
+    <div class="who hidden" id="whoRow" role="group" aria-label="Who is playing"></div>
+    <div class="type-row hidden" id="whoAddRow">
+      <input id="whoName" type="text" autocomplete="off" spellcheck="false"
+             placeholder="Their name" aria-label="Their name" maxlength="24">
+      <button class="btn btn-sm" id="btnWhoSave">Deal them in</button>
+    </div>
+
     <p class="first-run hidden" id="firstRun">Nine categories are switched on and nothing is scheduled yet, so
       every card is one you have not seen. Start a drill and grade yourself honestly — missed cards come back
       today, easy ones vanish for weeks. Twenty-three more categories are on the shelf below; tap a row to
@@ -418,6 +430,7 @@ h1 em{font-style:normal;color:var(--amber)}
       <div class="panel-foot">
         <button class="btn btn-sm" id="btnStats">The form guide</button>
         <button class="toggle" id="btnTyped" aria-pressed="false">Type the answers</button>
+        <button class="toggle" id="btnWhoAdd">Someone else's turn</button>
       </div>
     </div>
 
@@ -674,9 +687,31 @@ let mem=null, TESTING=false;
    per category. Both arrive empty for anyone upgrading, no migration needed. */
 /* games: one row per table game, [day, names[], scores[]] — the table's record,
    separate from hist because those answers were not all yours. */
-const DEFAULT=()=>({v:3,sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[],typed:false,hist:[],acc:{},names:'',games:[]});
+const DEFAULT=()=>({v:4,cur:'me',roster:[{id:'me',name:''}],
+  sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[],typed:false,hist:[],acc:{},names:'',games:[]});
 const HIST_MAX=400, GAMES_MAX=120;
 let S=DEFAULT();
+
+/* Several people share one phone at a table, so the drill knows whose it is.
+   Not an account: no sign-in, no server, nothing leaves the device.
+
+   S keeps exactly the shape it had — S.sched, S.streak, readiness() and the
+   rest still mean what they have always meant — and the stored blob carries
+   everybody, assembled on the way out and flattened on the way in. One key and
+   one write: split across two, the big write is the one that fails under a
+   full quota and the small one succeeds, leaving a pointer to data that was
+   never saved. */
+const PERSONAL=['sched','hist','acc','streak','answered','lastDay','typed'];
+/* Shared, each for a reason. Cards you add: a card's id is a hash of its
+   question, so DECK has to be identical for everybody or an id stops meaning
+   the same card. Switched-on decks: a switch would otherwise need a refetch,
+   and this has to work in a basement. The table's record: those were always
+   other people's scores. */
+const SHARED=['on','off','user','games','names'];
+const pick=(o,keys)=>Object.fromEntries(keys.filter(k=>o[k]!==undefined).map(k=>[k,o[k]]));
+let people={};                       // id -> the personal half, for everyone parked
+const foldName=n=>String(n||'').trim().toLowerCase();
+const whoName=p=>p.name||'You';
 
 const Store = {
   async get(k){
@@ -690,11 +725,19 @@ const Store = {
 };
 
 async function load(){
+  let blob=null;
   try{
     const raw=await Store.get(KEY);
-    // v defaults to 1, not to DEFAULT()'s 2 — a blob saved before versioning must still migrate
-    if(raw) S={...DEFAULT(),v:1,...JSON.parse(raw)};
-  }catch(e){ if(mem) S={...DEFAULT(),v:1,...mem}; }
+    if(raw) blob=JSON.parse(raw);
+  }catch(e){ blob=mem||null; }
+  if(blob&&blob.v>=4){
+    people=blob.me||{};
+    const cur=blob.cur||'me';
+    S={...DEFAULT(),...pick(blob,SHARED),...(people[cur]||{}),
+       v:4,cur,roster:blob.roster||[{id:cur,name:''}]};
+  }
+  // v defaults to 1, not to DEFAULT()'s — a blob saved before versioning must still migrate
+  else if(blob) S={...DEFAULT(),v:1,...blob};
   migrate();
 }
 
@@ -727,12 +770,27 @@ function migrate(){
     }
     S.v=3;
   }
+  if(S.v<4){
+    /* Everything that was here belongs to one unnamed person. Nobody who never
+       hands the phone over sees any difference at all. */
+    S.cur='me'; S.roster=[{id:'me',name:''}];
+    people={me:pick(S,PERSONAL)};
+    S.v=4;
+  }
+  if(!S.roster?.length) S.roster=[{id:S.cur||'me',name:''}];
+  if(!S.roster.some(p=>p.id===S.cur)) S.cur=S.roster[0].id;
   save();
+}
+/* Everyone on the phone, in one object: the parked people plus whoever is
+   holding it, which is the half of S that is theirs. */
+function blobOf(){
+  return {v:4, cur:S.cur, roster:S.roster,
+          me:{...people,[S.cur]:pick(S,PERSONAL)}, ...pick(S,SHARED)};
 }
 let saveTimer=null;
 function save(){
   if(TESTING) return;
-  mem=JSON.parse(JSON.stringify(S));
+  mem=blobOf();
   clearTimeout(saveTimer);
   saveTimer=setTimeout(flush,250);
 }
@@ -740,7 +798,7 @@ async function flush(){
   if(TESTING) return;
   clearTimeout(saveTimer);
   // A full quota is silent otherwise: the app keeps working and loses everything on close
-  try{ await Store.set(KEY,JSON.stringify(S)); }
+  try{ await Store.set(KEY,JSON.stringify(blobOf())); }
   catch(e){ notice('Storage is full — progress is not being saved. Export a backup.',true); }
 }
 addEventListener('pagehide',flush);
@@ -896,6 +954,36 @@ function mastery(cid){
   return pool.length? t/pool.length : 0;
 }
 
+/* Every boundary flushes first. save() debounces a quarter of a second, so
+   without it a grade from twenty milliseconds ago lands in the next person's
+   file — which is the one thing a shared phone must never do. */
+async function switchTo(id){
+  if(id===S.cur) return;
+  await flush();
+  people[S.cur]=pick(S,PERSONAL);
+  const blank=pick(DEFAULT(),PERSONAL);
+  Object.assign(S,blank,people[id]||{},{cur:id});
+  save(); buildDeck(); renderBoard();
+  const p=S.roster.find(x=>x.id===id);
+  notice(`${whoName(p)} is playing.`);
+}
+
+async function addPerson(name){
+  const clean=String(name||'').trim().slice(0,24);
+  if(!clean) return false;
+  if(S.roster.some(p=>foldName(p.name)===foldName(clean))) return false;
+  await flush();
+  people[S.cur]=pick(S,PERSONAL);
+  const id='p'+Date.now().toString(36);
+  // the first person was nobody in particular until somebody else turned up
+  if(S.roster.length===1&&!S.roster[0].name) S.roster[0].name='You';
+  S.roster=S.roster.concat([{id,name:clean}]);
+  Object.assign(S,pick(DEFAULT(),PERSONAL),{cur:id});
+  save(); buildDeck(); renderBoard();
+  notice(`${clean} is playing. Nobody else's progress moves while they are.`);
+  return true;
+}
+
 /* ============ UI ============ */
 const $=id=>document.getElementById(id);
 /* Unhidden before the text is set, because a live region that is populated
@@ -958,6 +1046,15 @@ function renderBoard(){
      Derived rather than stored: a dismissal flag is a field on S forever. */
   const started=(S.hist||[]).length||S.answered;
   $('firstRun').classList.toggle('hidden',!!started);
+
+  /* Nobody who keeps the phone to themselves ever sees this: one unnamed
+     person renders no chips and costs a solo board nothing. */
+  const many=S.roster.length>1;
+  $('whoRow').classList.toggle('hidden',!many);
+  if(many) $('whoRow').innerHTML=S.roster.map(p=>
+    `<button class="who-chip" data-who="${esc(p.id)}" aria-pressed="${p.id===S.cur}">${esc(whoName(p))}</button>`).join('');
+  // typed is personal, and its pressed state was only ever set at boot
+  $('btnTyped').setAttribute('aria-pressed',String(!!S.typed));
 
   /* At 23 decks a flat list is fine; with the local Jeopardy build it is 800,
      so each area shows a dozen until you ask for more, and search cuts across
@@ -1090,19 +1187,23 @@ function renderStats(){
 function tableStats(){
   const games=S.games||[];
   if(!games.length) return `<p class="empty">Hit “Play a board”, put names in the seats — comma-separated — and the table’s record lands here.</p>`;
+  /* Keyed on the folded name, so "Sam", "sam" and " Sam " are one person in the
+     standings rather than three. Seats are matched to people at read time and
+     never stored, which is why every game already on the record still counts. */
   const tally={};
   for(const [,names,scores] of games){
     const top=Math.max(...scores);
     names.forEach((n,i)=>{
-      const t=tally[n]||(tally[n]={played:0,won:0,best:scores[i]});
+      const k=foldName(n);
+      const t=tally[k]||(tally[k]={name:n,played:0,won:0,best:scores[i]});
       t.played++;
       if(scores[i]===top) t.won++;
       if(scores[i]>t.best) t.best=scores[i];
     });
   }
-  const standings=Object.entries(tally)
-    .sort((a,b)=>b[1].won-a[1].won||b[1].best-a[1].best)
-    .map(([n,t])=>`<b>${esc(n)}</b> — won ${t.won} of ${t.played}, best ${money(t.best)}`)
+  const standings=Object.values(tally)
+    .sort((a,b)=>b.won-a.won||b.best-a.best)
+    .map(t=>`<b>${esc(t.name)}</b> — won ${t.won} of ${t.played}, best ${money(t.best)}`)
     .join('<br>');
   const recent=games.slice(-6).reverse().map(([d,names,scores])=>{
     const top=Math.max(...scores);
@@ -1677,6 +1778,21 @@ $('btnDeal').onclick=dealSeats;
 $('quizSeats').oninput=()=>{ seatsDirty=true; };
 $('quizSeats').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); dealSeats(); } };
 $('btnQuizDone').onclick=finishQuiz;
+$('whoRow').onclick=e=>{
+  const chip=e.target.closest('[data-who]');
+  if(chip) switchTo(chip.dataset.who);
+};
+$('btnWhoAdd').onclick=()=>{
+  const row=$('whoAddRow');
+  row.classList.toggle('hidden');
+  if(!row.classList.contains('hidden')){ $('whoName').value=''; $('whoName').focus(); }
+};
+$('btnWhoSave').onclick=async()=>{
+  const ok=await addPerson($('whoName').value);
+  if(ok){ $('whoAddRow').classList.add('hidden'); $('whoName').value=''; }
+  else notice('That needs a name nobody at this table is already using.');
+};
+$('whoName').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); $('btnWhoSave').click(); } };
 $('btnStats').onclick=()=>{ renderStats(); show('statsView'); };
 /* The form guide knew your weakest category and the cards beating you, and
    emitted nothing you could press. Both routes already existed as functions. */
@@ -1708,10 +1824,15 @@ $('btnTyped').onclick=()=>{
   $('btnTyped').setAttribute('aria-pressed',String(!!S.typed));
 };
 $('btnReset').onclick=()=>{
-  if(!confirm('Clear every card\u2019s scheduling and your streak? Cards you added and the table\u2019s record stay. This cannot be undone.')) return;
-  // the table's record is other people's scores \u2014 a reset of *your* progress spares it
-  const {user,games,names}=S;
-  S=DEFAULT(); Object.assign(S,{user,games,names}); save(); buildDeck(); renderBoard();
+  const me=S.roster.find(p=>p.id===S.cur);
+  const whose=S.roster.length>1?`${whoName(me)}\u2019s`:'every';
+  if(!confirm(`Clear ${whose} card scheduling and streak? Cards you added, the table\u2019s record and everybody else on this phone stay. This cannot be undone.`)) return;
+  /* Only the person holding it. The table's record is other people's scores,
+     and so is everybody else's schedule. */
+  const {user,games,names,roster,cur}=S;
+  S=DEFAULT();
+  Object.assign(S,{user,games,names,roster,cur,v:4});
+  save(); buildDeck(); renderBoard();
 };
 
 /* ---- your own cards ---- */
@@ -1735,10 +1856,13 @@ $('btnImport').onclick=()=>{
   $('tsv').value='';
   ioMsg(`Added ${rows.length} card${rows.length===1?'':'s'}.`);
 };
+/* A backup is the whole phone, everybody on it — exporting only whoever is
+   holding it would quietly lose the others. */
 $('btnExport').onclick=()=>{
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(blobOf())],{type:'application/json'}));
   a.download='lastcall-backup.json'; a.click(); URL.revokeObjectURL(a.href);
+  ioMsg(`Backed up ${S.roster.length===1?'your progress':`all ${S.roster.length} of you`}.`);
 };
 $('btnRestore').onclick=()=>$('fileImport').click();
 $('fileImport').onchange=async e=>{
@@ -1747,11 +1871,21 @@ $('fileImport').onchange=async e=>{
   let data;
   try{ data=JSON.parse(await f.text()); }
   catch(err){ return ioMsg('That file is not a Last Call backup.'); }
-  if(!data||typeof data.sched!=='object') return ioMsg('That file is not a Last Call backup.');
-  S={...DEFAULT(),...data};
+  // a v4 backup carries everybody; anything older is one person's flat blob
+  const many=data&&data.v>=4&&data.me&&typeof data.me==='object';
+  if(!data||(!many&&typeof data.sched!=='object')) return ioMsg('That file is not a Last Call backup.');
+  if(many){
+    people=data.me;
+    const cur=data.cur&&people[data.cur]?data.cur:Object.keys(people)[0]||'me';
+    S={...DEFAULT(),...pick(data,SHARED),...(people[cur]||{}),
+       v:4,cur,roster:Array.isArray(data.roster)&&data.roster.length?data.roster:[{id:cur,name:''}]};
+  }else{
+    people={};
+    S={...DEFAULT(),...data,v:4,cur:'me',roster:[{id:'me',name:''}]};
+  }
   S.games=saneGames(S.games);
   save(); buildDeck(); renderBoard();
-  ioMsg('Progress restored.');
+  ioMsg(many&&S.roster.length>1?`Restored all ${S.roster.length} of you.`:'Progress restored.');
 };
 
 document.addEventListener('keydown',e=>{
@@ -1840,7 +1974,11 @@ function selftest(){
   const moved=S.sched[cardId(BUILTIN[7].q)];
   ok('migrate: v1 index keys re-key to the same card', !!moved && moved[IVL]===9 && moved[REPS]===2);
   ok('migrate: v2 objects are packed into arrays', Array.isArray(moved) && moved.length===5);
-  ok('migrate: lands on the current version', S.v===3);
+  ok('migrate: lands on the current version', S.v===4);
+  ok('migrate: everything already here belongs to one unnamed person',
+     S.roster.length===1 && S.roster[0].id===S.cur && S.roster[0].name==='');
+  ok('migrate: and that person holds the re-keyed schedule',
+     people[S.cur] && people[S.cur].sched===S.sched);
   S=DEFAULT(); S.sched={'zzzorphan':{ivl:1,ease:2.5,due:0,reps:1,lapses:0}}; buildDeck();
   ok('deck: a schedule with no card left in the deck is kept, not pruned', !!S.sched['zzzorphan']);
 

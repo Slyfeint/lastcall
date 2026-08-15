@@ -535,6 +535,119 @@ try {
   ok('wager: losing it costs the bet', await ev(`quiz.score===0`));
   ok('wager: and it is not offered twice', !(await visible('wagerBox')));
 
+  /* --- several people, one phone. Not an account: nothing is sent anywhere,
+     and a solo user must not pay a pixel for it. */
+  await reset(); await nav();
+  ok('who: one person alone sees no chips at all', await ev(`
+    S.roster.length===1 && document.getElementById('whoRow').offsetHeight===0`));
+
+  await ev(`document.getElementById('btnDrill').click();
+            (()=>{ if(!flipped) flip(); answer(3); })();
+            document.getElementById('btnQuit').click()`);
+  const mineId = await ev('Object.keys(S.sched)[0]');
+  const mineCount = await ev('Object.keys(S.sched).length');
+
+  await ev(`document.getElementById('btnWhoAdd').click();
+            document.getElementById('whoName').value='Marta';
+            document.getElementById('btnWhoSave').click()`);
+  await sleep(200);
+  ok('who: adding somebody deals them in and names the first person', await ev(`
+    S.roster.length===2 && S.roster[0].name==='You' && S.roster[1].name==='Marta'`));
+  ok('who: and the phone is now theirs', await ev(`S.cur===S.roster[1].id`));
+  ok('who: they start with nothing scheduled', await ev(`Object.keys(S.sched).length===0`));
+  ok('who: your streak is not theirs', await ev(`!S.streak && !S.answered`));
+  ok('who: two chips, one of them pressed', await ev(`
+    document.querySelectorAll('#whoRow .who-chip').length===2
+    && document.querySelectorAll('#whoRow .who-chip[aria-pressed="true"]').length===1`));
+
+  await ev(`document.getElementById('btnDrill').click();
+            (()=>{ for(let i=0;i<3;i++){ if(!flipped) flip(); answer(2); } })();
+            document.getElementById('btnQuit').click()`);
+  const martaCount = await ev('Object.keys(S.sched).length');
+  ok('who: their drilling does not touch yours', martaCount > 0);
+
+  await ev(`document.querySelector('#whoRow .who-chip').click()`);
+  await sleep(200);
+  ok('who: switching back brings your schedule with it',
+     await ev('Object.keys(S.sched).length') === mineCount
+     && await ev(`!!S.sched[${JSON.stringify(mineId)}]`));
+  ok('who: and not a card of theirs', await ev('Object.keys(S.sched).length') === mineCount);
+
+  /* Typing is a personal preference, and its pressed state was only ever set at
+     boot — so it used to survive a switch and lie about whose setting it was. */
+  // whoever is holding it right now turns typing on
+  await ev(`document.getElementById('btnTyped').click()`);
+  const typist = await ev('S.cur');
+  ok('who: one of you types the answers', await ev(`
+    S.typed===true && document.getElementById('btnTyped').getAttribute('aria-pressed')==='true'`));
+  await ev(`[...document.querySelectorAll('#whoRow .who-chip')].find(c=>c.dataset.who!==S.cur).click()`);
+  await sleep(200);
+  ok('who: and the other one flips the card', await ev(`
+    S.cur!==${JSON.stringify(typist)} && !S.typed
+    && document.getElementById('btnTyped').getAttribute('aria-pressed')==='false'`));
+  await ev(`document.querySelector('#whoRow .who-chip[data-who="'+${JSON.stringify(typist)}+'"]').click()`);
+  await sleep(200);
+  ok('who: switching back remembers they were typing', await ev(`
+    S.typed===true && document.getElementById('btnTyped').getAttribute('aria-pressed')==='true'`));
+  await ev(`document.getElementById('btnTyped').click()`);
+
+  // the shared half stays shared, for the reasons stated in the code
+  await ev(`S.games=[[today(),['Marta','Sam'],[600,-200]]]; S.user=[{c:'u:x',cn:'X',q:'Shared q',a:'A'}]; save();
+            document.querySelectorAll('#whoRow .who-chip')[1].click()`);
+  await sleep(200);
+  ok('who: the table’s record is the room’s, not one person’s', await ev(`(S.games||[]).length===1`));
+  ok('who: and so are the cards you add', await ev(`(S.user||[]).length===1`));
+
+  await ev('flush()'); await nav();
+  ok('who: everybody survives a reload', await ev(`
+    S.roster.length===2 && S.roster.map(p=>p.name).join()==='You,Marta'`));
+  ok('who: on whichever person was holding it', await ev(`S.roster[1].id===S.cur`));
+  ok('who: with their own schedule, not the other one', await ev('Object.keys(S.sched).length') === martaCount);
+  ok('who: and it is all one key, so a full quota cannot tear it', await ev(`
+    Object.keys(localStorage).filter(k=>k.startsWith('lastcall')).length===1`));
+
+  // a reset is for whoever is holding the phone
+  await ev(`window.confirm=()=>true; document.getElementById('btnReset').click()`);
+  await sleep(200);
+  ok('reset: it clears the person holding it', await ev(`Object.keys(S.sched).length===0`));
+  // defensive: a wiped roster must report, not throw the harness off the rails
+  ok('reset: it leaves everybody else alone', await ev(`
+    S.roster.length===2 && Object.keys(people[S.roster[0].id]?.sched||{}).length===${mineCount}`));
+  ok('reset: and still spares the cards and the table', await ev(`
+    (S.user||[]).length===1 && (S.games||[]).length===1`));
+
+  // a backup is the whole phone
+  await ev(`document.getElementById('btnExport').click()`);
+  ok('backup: it says how many of you it took', await ev(`
+    /all 2 of you/.test(document.getElementById('ioMsg').textContent)`));
+  await reset(); await nav();
+  await ev(`(async()=>{
+    const f=new File([JSON.stringify({v:4,cur:'b',roster:[{id:'a',name:'Ann'},{id:'b',name:'Ben'}],
+      me:{a:{sched:{zz:[1,2.5,0,1,0]},streak:4},b:{sched:{},streak:9}},
+      on:[],off:[],user:[],games:[],names:''})],'b.json',{type:'application/json'});
+    const dt=new DataTransfer(); dt.items.add(f);
+    const inp=document.getElementById('fileImport');
+    Object.defineProperty(inp,'files',{value:dt.files,configurable:true});
+    inp.dispatchEvent(new Event('change'));
+    await new Promise(r=>setTimeout(r,150));
+  })()`);
+  ok('backup: restoring brings everybody back', await ev(`
+    S.roster.map(p=>p.name).join()==='Ann,Ben' && S.cur==='b' && S.streak===9`));
+  ok('backup: including the one who was parked', await ev(`
+    people.a && people.a.streak===4 && !!people.a.sched.zz`));
+
+  // an old single-person backup still restores, as one person
+  await ev(`(async()=>{
+    const f=new File([JSON.stringify({sched:{yy:[1,2.5,0,1,0]},streak:2,answered:7})],'old.json',{type:'application/json'});
+    const dt=new DataTransfer(); dt.items.add(f);
+    const inp=document.getElementById('fileImport');
+    Object.defineProperty(inp,'files',{value:dt.files,configurable:true});
+    inp.dispatchEvent(new Event('change'));
+    await new Promise(r=>setTimeout(r,150));
+  })()`);
+  ok('backup: a backup from before any of this restores as one person', await ev(`
+    S.roster.length===1 && S.streak===2 && S.answered===7 && !!S.sched.yy`));
+
   // --- the board says what each mode does, and introduces itself once
   await reset(); await nav();
   ok('board: every mode carries a caption saying what it does', await ev(`
