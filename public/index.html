@@ -73,6 +73,13 @@ h1{font-family:var(--disp);font-weight:700;font-size:clamp(40px,9vw,68px);line-h
 h1 em{font-style:normal;color:var(--amber)}
 .mast-right{font-family:var(--mono);font-size:var(--m-lg);color:var(--foam-dim);text-align:right;letter-spacing:.06em}
 .mast-right b{color:var(--foam);font-weight:700}
+/* Messages that must survive the next repaint get their own node. The storage
+   warning used to be written into .subline, which renderBoard overwrites on the
+   very next paint — the most consequential sentence in the app, alive for one
+   frame. Nothing but notice() writes here. */
+.notice{font-family:var(--mono);font-size:var(--m);letter-spacing:.05em;color:var(--foam);
+  border-left:3px solid var(--amber);padding:9px 12px;margin:-18px 0 26px}
+.notice.bad{border-left-color:var(--wrong)}
 .subline{font-family:var(--mono);font-size:var(--m);letter-spacing:.16em;text-transform:uppercase;
   color:var(--foam-dim);margin-bottom:30px}
 
@@ -209,7 +216,7 @@ h1 em{font-style:normal;color:var(--amber)}
 .chart{width:100%;height:auto;display:block;overflow:visible}
 .chart text{font-family:var(--mono);font-size:var(--m-sm);fill:var(--foam-dim);letter-spacing:.06em}
 .bars{display:flex;flex-direction:column;gap:2px}
-.bar-row{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:9px 0;
+.bar-row{display:grid;width:100%;text-align:left;cursor:pointer;grid-template-columns:1fr auto;gap:2px 12px;padding:9px 0;
   border-bottom:1px solid var(--rule);align-items:baseline}
 .bar-name{font-family:var(--disp);font-size:17px;text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
 .bar-val{font-family:var(--mono);font-size:var(--m);color:var(--foam-dim);letter-spacing:.04em;white-space:nowrap}
@@ -352,6 +359,7 @@ h1 em{font-style:normal;color:var(--amber)}
     <div class="mast-right" id="mastStat">loading progress…</div>
   </header>
   <div class="subline" id="subline">the categories your table keeps punting on</div>
+  <div class="notice hidden" id="notice" role="status" aria-live="polite"></div>
 
   <!-- BOARD -->
   <div class="board live" id="board">
@@ -438,8 +446,8 @@ h1 em{font-style:normal;color:var(--amber)}
     </div>
 
     <div class="grades hidden" id="roundRow">
-      <button class="grade g1" data-r="0" style="grid-column:span 1"><b>Missed</b><i>no point</i></button>
-      <button class="grade g2" data-r="1" style="grid-column:span 2"><b>Got it</b><i>+1</i></button>
+      <button class="grade g1" data-r="0" style="grid-column:span 1"><b>Missed</b><i id="rMiss">no point</i></button>
+      <button class="grade g2" data-r="1" style="grid-column:span 2"><b>Got it</b><i id="rGot">+1</i></button>
     </div>
 
     <div class="stage-foot">
@@ -568,8 +576,12 @@ async function loadManifest(){
   manifestReady=true;
 }
 
+/* A deck that failed once used to poison the message for the whole visit, and a
+   failed deck looked exactly like one you had switched off. Both are cleared
+   the moment a fetch succeeds. */
+const failed=new Set();
 async function ensureDecks(ids){
-  const need=ids.filter(id=>!LOADED.has(id)&&MANIFEST.some(d=>d.id===id));
+  const need=ids.filter(id=>(!LOADED.has(id)||failed.has(id))&&MANIFEST.some(d=>d.id===id));
   if(!need.length) return;
   await Promise.all(need.map(async id=>{
     const d=MANIFEST.find(x=>x.id===id);
@@ -577,7 +589,9 @@ async function ensureDecks(ids){
       const r=await fetch(d.file);
       if(!r.ok) throw new Error(r.status);
       LOADED.set(id,(await r.json()).cards.map(c=>({...c,c:id})));
-    }catch(e){ LOADED.set(id,[]); deckTrouble=`Could not load ${d.name}.`; }
+      failed.delete(id);
+      if(!failed.size&&/^Could not load/.test(deckTrouble)){ deckTrouble=''; notice(''); }
+    }catch(e){ LOADED.set(id,[]); failed.add(id); deckTrouble=`Could not load ${d.name}.`; }
   }));
   buildDeck();
 }
@@ -683,7 +697,7 @@ async function flush(){
   clearTimeout(saveTimer);
   // A full quota is silent otherwise: the app keeps working and loses everything on close
   try{ await Store.set(KEY,JSON.stringify(S)); }
-  catch(e){ const el=$('subline'); if(el) el.textContent='Storage is full — progress is not being saved. Export a backup.'; }
+  catch(e){ notice('Storage is full — progress is not being saved. Export a backup.',true); }
 }
 addEventListener('pagehide',flush);
 
@@ -840,6 +854,16 @@ function mastery(cid){
 
 /* ============ UI ============ */
 const $=id=>document.getElementById(id);
+/* Unhidden before the text is set, because a live region that is populated
+   while display:none announces nothing — the same lesson as the turn caller. */
+function notice(msg,bad){
+  const el=$('notice');
+  if(!el) return;
+  if(!msg){ el.classList.add('hidden'); el.textContent=''; return; }
+  el.classList.remove('hidden');
+  el.classList.toggle('bad',!!bad);
+  el.textContent=msg;
+}
 const esc=s=>String(s??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const loading=new Set();
 const expanded=new Set();
@@ -861,8 +885,8 @@ function renderBoard(){
     `<b>${overall}%</b> mastered · <b>${seen}</b>/${DECK.length} cards seen<br>`+
     `<b>${S.streak||0}</b> day streak · <b>${S.answered||0}</b> answered all-time`;
 
-  if(deckTrouble) $('subline').textContent=deckTrouble;
-  else if(shelf) $('subline').textContent=`${shelf.toLocaleString()} more cards on the shelf — switch a category on`;
+  if(deckTrouble) notice(deckTrouble,true);
+  if(shelf) $('subline').textContent=`${shelf.toLocaleString()} more cards on the shelf — switch a category on`;
 
   $('sessionNote').textContent = due||fresh
     ? `${due} due for review · ${fresh} you haven't seen · 20 per sitting`
@@ -1101,23 +1125,29 @@ function catBars(act){
     return {id, name:CAT_BY_ID[id]?.name||id, right:a?.[0]||0, asked:a?.[1]||0};
   }).filter(r=>r.asked>0).sort((a,b)=>(a.right/a.asked)-(b.right/b.asked));
   if(!rows.length) return `<p class="empty">Answer a few and your weakest categories sort themselves to the top.</p>`;
+  /* Each row drills its own category. Knowing your weakest subject and then
+     having to go back, scroll thirty rows and find it was the long way round
+     to a button the app already had. */
   return `<div class="bars">${rows.map(r=>{
     const pct=Math.min(100,Math.round(100*r.right/r.asked));
-    return `<div class="bar-row">
+    return `<button class="bar-row" data-dive="${esc(r.id)}"
+        aria-label="Dive into ${esc(r.name)} — ${pct}% right of ${r.asked} asked">
       <span class="bar-name">${esc(r.name)}</span>
       <span class="bar-val">${pct}% · ${r.asked} asked</span>
       <span class="track"><span class="mark" data-pct="${pct}" style="width:${pct}%"></span></span>
-    </div>`;
+    </button>`;
   }).join('')}</div>`;
 }
 
 function leechList(){
   const rows=leechCards().map(c=>({c,n:S.sched[c.id][LAPSES]})).sort((a,b)=>b.n-a.n).slice(0,12);
   if(!rows.length) return `<p class="empty">Nothing has beaten you five times yet.</p>`;
+  const all=leechCards().length;
   return rows.map(({c,n})=>`<div class="leech-row">
     <span>${esc(c.q)}<br><b>${esc(c.a)}</b></span>
     <span class="leech-n">missed ${n}×</span>
-  </div>`).join('');
+  </div>`).join('')
+  + `<button class="btn btn-sm" id="btnLeechHere">Drill these ${all}</button>`;
 }
 
 /* ============ THE BOARD GAME ============ */
@@ -1224,6 +1254,7 @@ function pickTile(key){
   show('stage'); paint();
   const seat=quiz.players?`${quiz.players[quiz.turn].name} · `:'';
   $('cardCat').textContent=`${seat}${quiz.cats[col].name} · $${VALUES[row]}`;
+  stakeLabels(money(-VALUES[row]),money(VALUES[row]));
 }
 
 function scoreTile(right){
@@ -1302,6 +1333,7 @@ function startWager(){
   $('tally').innerHTML=''; $('progFill').style.width='0';
   show('stage'); paint();
   $('cardCat').textContent=`The wager · $${bet.toLocaleString()}`;
+  stakeLabels(money(-bet),money(bet));
 }
 
 function settleWager(right){
@@ -1330,7 +1362,12 @@ async function startDive(cid){
     loading.delete(cid);
   }
   const pool=diveQueue(cid);
-  if(!pool.length){ renderBoard(); return; }
+  if(!pool.length){
+    // it used to flicker and stay put, which reads as a broken button
+    renderBoard(); show('board');
+    notice(`${CAT_BY_ID[cid]?.name||cid} has no cards to drill.`);
+    return;
+  }
   runDrill(pool);
   diveCat=cid;                                 // runDrill clears it; a dive keeps it
   $('cardCat').textContent=CAT_BY_ID[cid]?.name||cid;
@@ -1343,10 +1380,16 @@ function diveQueue(cid){
   return [...due,...fresh,...rest].slice(0,40);
 }
 
+/* What this sitting did to the schedule, kept only for as long as the sitting
+   lasts. A Map and not a field on S: nothing to migrate, nothing to merge, and
+   nothing added to a store that is already measured against a 4MB ceiling. */
+const drillGrades=new Map();
+
 function runDrill(cards){
   Q=cards.map(c=>c.id);
   if(!Q.length) return;
   mode='drill'; idx=0; score=0; missed=[]; diveCat=null; night=null;
+  drillGrades.clear();
   $('tally').innerHTML='';
   show('stage'); paint();
 }
@@ -1378,10 +1421,25 @@ function nightScorecard(){
   show('resultView');
 }
 
+/* The two-button row is shared by the round, the board and the wager, so its
+   sub-labels used to read "no point" and "+1" while a tile was taking six
+   hundred dollars off a named person. Set where the stake is known. */
+function stakeLabels(miss,got){ $('rMiss').textContent=miss; $('rGot').textContent=got; }
+
+/* Nothing switched on used to deal an empty round, which finished instantly at
+   nought out of nought and told you it was a clean sheet. */
 function startRound(){
   const act=activeCats();
-  Q=shuffle(DECK.filter(c=>act.includes(c.c))).slice(0,10).map(c=>c.id);
+  const pool=shuffle(DECK.filter(c=>act.includes(c.c))).slice(0,10);
+  if(!pool.length){
+    night=null;
+    renderBoard(); show('board');
+    notice('Nothing is switched on, so there is nothing to ask you.');
+    return;
+  }
+  Q=pool.map(c=>c.id);
   mode='round'; idx=0; score=0; missed=[]; diveCat=null;
+  stakeLabels('no point','+1');
   $('tally').innerHTML=Q.map(()=>'<span class="pip"></span>').join('');
   show('stage'); paint();
 }
@@ -1438,10 +1496,12 @@ function submitTyped(){
     // preselect, do not decide: right lands on "got it", the rest on "missed"
     const btn=document.querySelector('#gradeRow '+(v==='right'?'.g2':'.g1'));
     if(btn) btn.focus();
-  }else if(v==='close'){
-    // the judge refused to call it, so no mode gets to auto-mark it wrong —
-    // the card stays up, the verdict stays readable, and a human settles it
-    const btn=document.querySelector('#roundRow .g1');
+  }else if(v==='close'||mode==='quiz'||mode==='wager'){
+    /* The judge refused to call it, or there is money on it. A tile is worth
+       real points to a named person at the table, and Enter on an empty box
+       reads as "wrong" — nobody should lose $800 to a typo with no appeal.
+       The card stays up, the verdict stays readable, a human settles it. */
+    const btn=document.querySelector('#roundRow '+(v==='right'?'.g2':'.g1'));
     if(btn) btn.focus();
   }else{
     answer(v==='right'?1:0);
@@ -1458,6 +1518,7 @@ function answer(g){
   if(mode==='wager'){ settleWager(!!g); return; }
   if(mode==='drill'){
     grade(c.id,g);
+    drillGrades.set(c.id,g);     // last grade wins: a missed card comes round again
     if(g===1&&!isLeech(c.id)) Q.push(c.id);
   }else{
     const pips=$('tally').children;
@@ -1465,6 +1526,41 @@ function answer(g){
     if(g) score++; else missed.push(c);
   }
   idx++; paint();
+}
+
+/* A drill is not scored, so its ending does not pretend to be. What it can say
+   honestly is what it did to your schedule: a card you graded "missed" is due
+   again today, and the rest are pushed out. That is the whole point of the
+   mode, and it used to end by silently dropping you on the board. */
+function drillResult(){
+  const grades=[...drillGrades];
+  const back=grades.filter(([,g])=>g===1).map(([id])=>id);
+  const bed=grades.length-back.length;
+  const nextDue=grades.filter(([,g])=>g>1)
+    .map(([id])=>S.sched[id]?.[DUE]).filter(Boolean).sort((a,b)=>a-b)[0];
+  const inDays=nextDue==null?null:Math.max(0,nextDue-today());
+  const word=n=>['none','one','two','three','four','five','six','seven','eight','nine','ten'][n]||n;
+
+  $('scoreNum').innerHTML=`${grades.length}<small>${grades.length===1?'card':'cards'}</small>`;
+  const put = bed ? `${word(bed)} put to bed` : 'nothing put to bed yet';
+  const again = back.length ? `${word(back.length)} coming round again today` : 'none coming back today';
+  const when = inDays==null ? '' : inDays===0 ? ' The rest are due again today.'
+    : inDays===1 ? ' The next is due tomorrow.' : ` The next is due in ${word(inDays)} days.`;
+  $('scoreLine').textContent=`${put[0].toUpperCase()+put.slice(1)}, ${again}.${when}`;
+
+  $('missedHead').textContent='Coming round again today';
+  $('missedHead').classList.toggle('hidden',!back.length);
+  $('missedList').innerHTML=back.map(id=>BY_ID[id]).filter(Boolean)
+    .map(c=>`<li>${esc(c.q)}<br><b>${esc(c.a)}</b></li>`).join('');
+
+  // the button offers what is actually left, not a round twenty it cannot deal
+  const act=activeCats();
+  const left=Math.min(20, dueCards().filter(c=>act.includes(c.c)).length
+                        + newCards().filter(c=>act.includes(c.c)).length);
+  $('btnAgain').textContent = left ? `Another ${left}` : 'Nothing else is due';
+  $('btnAgain').disabled = !left;
+  $('wagerBox').classList.add('hidden');
+  show('resultView');
 }
 
 function finish(){
@@ -1476,6 +1572,7 @@ function finish(){
   }
   if(mode==='round'){
     $('btnAgain').textContent='Another round';
+    $('btnAgain').disabled=false;
     $('wagerBox').classList.add('hidden');
     $('missedHead').textContent='Worth a second look';
     $('scoreNum').innerHTML=`${score}<small>/${Q.length}</small>`;
@@ -1484,11 +1581,15 @@ function finish(){
       : score>=Q.length*0.4?'Middling — the drill is where this gets fixed.'
       : 'Rough round. Good news: now you know where to aim.';
     $('missedHead').classList.toggle('hidden',!missed.length);
-    $('missedList').innerHTML=missed.map(c=>`<li>${c.q}<br><b>${c.a}</b></li>`).join('');
+    // a restored backup is untrusted input, and every other list here escapes
+    $('missedList').innerHTML=missed.map(c=>`<li>${esc(c.q)}<br><b>${esc(c.a)}</b></li>`).join('');
     show('resultView');
   }else{
-    logSession(diveCat?'dive':'drill');
-    renderBoard(); show('board');
+    const kind=diveCat?'dive':'drill';
+    logSession(kind);
+    renderBoard();
+    if(drillGrades.size) { mode='drill-done'; drillResult(); }
+    else show('board');
   }
 }
 
@@ -1500,6 +1601,7 @@ $('btnFlip').onclick=flip;
 $('btnQuit').onclick=()=>{logSession(diveCat?'dive':mode);renderBoard();show('board');};
 $('btnAgain').onclick=()=>{
   if(mode==='quiz-done') return startQuiz(quiz?.players?.map(p=>p.name));
+  if(mode==='drill-done') return startDrill();
   if(night) return night.round>=NIGHT_ROUNDS ? startNight() : startRound();
   startRound();
 };
@@ -1513,6 +1615,13 @@ $('quizSeats').oninput=()=>{ seatsDirty=true; };
 $('quizSeats').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); dealSeats(); } };
 $('btnQuizDone').onclick=finishQuiz;
 $('btnStats').onclick=()=>{ renderStats(); show('statsView'); };
+/* The form guide knew your weakest category and the cards beating you, and
+   emitted nothing you could press. Both routes already existed as functions. */
+$('statsBody').onclick=e=>{
+  const bar=e.target.closest('[data-dive]');
+  if(bar) return startDive(bar.dataset.dive);
+  if(e.target.closest('#btnLeechHere')) return startLeechDrill();
+};
 $('btnStatsBack').onclick=()=>{ renderBoard(); show('board'); };
 $('btnWager').onclick=startWager;
 $('deckSearch').oninput=()=>renderBoard();

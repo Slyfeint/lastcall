@@ -535,6 +535,65 @@ try {
   ok('wager: losing it costs the bet', await ev(`quiz.score===0`));
   ok('wager: and it is not offered twice', !(await visible('wagerBox')));
 
+  /* --- the drill has an ending. It is the primary action and the only mode
+     that used to finish by silently dropping you back on the board. */
+  await reset(); await nav();
+  await ev(`document.getElementById('btnDrill').click();
+            (()=>{ let n=0; while(document.getElementById('stage').classList.contains('live') && n++<400){
+              if(!flipped) flip(); answer(n%4===0?1:2); } })()`);
+  ok('drill: it ends on a scorecard instead of dropping you on the board', await visible('resultView'));
+  ok('drill: the number is cards, not a score out of anything', await ev(`
+    /^\\d+cards?$/.test(document.getElementById('scoreNum').textContent.replace(/\\s/g,''))`));
+  ok('drill: it says what it did to the schedule', await ev(`
+    /put to bed/.test(document.getElementById('scoreLine').textContent)`));
+  ok('drill: everything it says is coming back today really is due today', await ev(`
+    [...drillGrades].filter(([,g])=>g===1).every(([id])=>S.sched[id][2]<=today())`));
+  ok('drill: and the ones put to bed are not', await ev(`
+    [...drillGrades].filter(([,g])=>g>1).every(([id])=>S.sched[id][2]>today())`));
+  ok('drill: the button offers what is actually left, not a round twenty', await ev(`(()=>{
+    const act=activeCats();
+    const left=Math.min(20, dueCards().filter(c=>act.includes(c.c)).length
+                          + newCards().filter(c=>act.includes(c.c)).length);
+    const b=document.getElementById('btnAgain');
+    return left ? b.textContent==='Another '+left : b.disabled;})()`));
+  ok('drill: the sitting is not kept in your saved progress', await ev(`
+    !JSON.stringify(S).includes('drillGrades') && typeof S.drillGrades==='undefined'`));
+  await ev(`document.getElementById('btnBack').click()`);
+
+  // --- the form guide can be acted on
+  await ev(`document.getElementById('btnStats').click()`);
+  ok('stats: a category bar is a button that drills it', await ev(`
+    !!document.querySelector('#statsBody .bar-row[data-dive]')`));
+  const barCat = await ev(`document.querySelector('#statsBody .bar-row[data-dive]').dataset.dive`);
+  await ev(`document.querySelector('#statsBody .bar-row[data-dive]').click()`);
+  await sleep(900);
+  ok('stats: pressing it starts a dive in that category', await ev(
+    `diveCat===${JSON.stringify(barCat)} && Q.every(id=>BY_ID[id].c===${JSON.stringify(barCat)})`));
+  await ev(`document.getElementById('btnQuit').click()`);
+
+  /* --- an empty pool must not be reported as a clean sheet */
+  await reset(); await nav();
+  await ev(`CATS.forEach(c=>{ if(isHouseCat(c.id)&&!S.off.includes(c.id)) S.off.push(c.id); });
+            S.on=[]; save(); renderBoard();
+            document.getElementById('btnRound').click()`);
+  ok('empty: a round with nothing switched on does not deal', await ev(
+    `document.getElementById('board').classList.contains('live') && Q.length===0`));
+  ok('empty: and it says why, where the next repaint cannot wipe it', await ev(`
+    /Nothing is switched on/.test(document.getElementById('notice').textContent)
+    && document.getElementById('notice').offsetHeight>0`));
+  ok('empty: it never claims a clean sheet over nought out of nought', await ev(`
+    !/Clean sheet/.test(document.getElementById('scoreLine').textContent)`));
+  await ev(`document.getElementById('btnNight').click()`);
+  ok('empty: neither does the whole night', await ev(
+    `document.getElementById('board').classList.contains('live') && night===null`));
+
+  // the storage warning has to outlive the repaint that used to eat it
+  await reset(); await nav();
+  await ev(`notice('Storage is full — progress is not being saved. Export a backup.',true); renderBoard()`);
+  ok('notice: the storage warning survives a repaint', await ev(`
+    /Storage is full/.test(document.getElementById('notice').textContent)
+    && document.getElementById('notice').offsetHeight>0`));
+
   // --- the table: the same board, dealt to friends
   await reset(); await nav();
   // an escaped session logs itself — otherwise its tally leaks into whatever logs next
@@ -583,17 +642,32 @@ try {
   ok('table: a miss costs the seat that missed', await ev('quiz.players[1].score===-1000'));
   ok('table: other people’s answers stay out of your form', await ev('JSON.stringify(S.acc)') === accBefore);
 
+  /* Typing must never move another person's money on its own. Enter on an empty
+     box judges "wrong", and with the flip button hidden there was no way out —
+     one typo cost a named human the tile with no appeal. */
+  await ev(`S.typed=true; document.querySelector('.tile[data-cell="2:3"]').click()`);
+  const purseBefore = await ev('quiz.players.map(p=>p.score).join()');
+  await ev(`(()=>{const t=document.getElementById('typed');
+    t.value=''; t.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));})()`);
+  ok('table: an empty answer does not take the tile off anybody',
+     await ev('quiz.players.map(p=>p.score).join()') === purseBefore);
+  ok('table: it reveals the card and hands the grade to a human', await visible('roundRow'));
+  ok('table: and the grade row says what the tile is worth', await ev(`
+    document.getElementById('rMiss').textContent==='-$800'
+    && document.getElementById('rGot').textContent==='$800'`));
+  await ev(`answer(0); S.typed=false`);
+
   await ev(`document.getElementById('btnQuizDone').click()`);
   ok('table: the standings name the winner', await ev(`/Alice takes the night/.test(document.getElementById('scoreLine').textContent)`));
   ok('table: every seat is on the scorecard', await ev(`document.querySelectorAll('#missedList li').length===2`));
   ok('table: red money is legible, not amber', await ev(`!!document.querySelector('#missedList b.neg')`));
   ok('table: the game lands on the record, scores and all',
-     await ev(`(S.games||[]).length===1 && S.games[0][1].join()==='Alice,Bob' && S.games[0][2].join()==='200,-1000'`));
+     await ev(`(S.games||[]).length===1 && S.games[0][1].join()==='Alice,Bob' && S.games[0][2].join()==='-600,-1000'`));
   ok('table: and your personal history never noticed', await ev('JSON.stringify(S.hist)') === histBefore);
 
   // the record has to survive a reload, or it is not a record
   await ev('flush()'); await nav();
-  ok('table: the record survives a reload', await ev(`(S.games||[]).length===1 && S.games[0][2].join()==='200,-1000'`));
+  ok('table: the record survives a reload', await ev(`(S.games||[]).length===1 && S.games[0][2].join()==='-600,-1000'`));
   await ev(`document.getElementById('btnBoardGame').click()`);
   ok('table: the seats remember who was here', await ev(`document.getElementById('quizSeats').value==='Alice, Bob'`));
 
