@@ -103,12 +103,20 @@ try {
   ok('shelf: the manifest was read', await ev('MANIFEST.length >= 20'));
   ok('shelf: nothing extra was fetched at boot', await ev('LOADED.size === 0'));
   ok('shelf: areas group the board', await ev('document.querySelectorAll(".area").length >= 5'));
+  /* Walks .tap-row, not .tap. renderBoard wraps every row in a .tap-row, so the
+     old walk stopped at the first sibling and counted nought for every area on
+     the board — it passed on nothing for as long as it existed. Demonstrated:
+     with the cap deliberately broken to 20 rows in one area, the old walk still
+     said yes and this one says no. */
   ok('shelf: an area never renders more than a dozen rows unasked',
      await ev(`[...document.querySelectorAll('.area')].every(h=>{
        let n=0,el=h.nextElementSibling;
-       while(el&&el.classList.contains('tap')){n++;el=el.nextElementSibling;}
+       while(el&&el.classList.contains('tap-row')){n++;el=el.nextElementSibling;}
        return n<=12;          // a literal, not PER_AREA — a check must not read its own answer
      })`));
+  ok('shelf: and that walk actually reaches the rows', await ev(`
+    [...document.querySelectorAll('.area')].some(h=>
+      h.nextElementSibling&&h.nextElementSibling.classList.contains('tap-row'))`));
 
   /* Folding only kicks in past a dozen decks in one area, which is the local
      Jeopardy build, not the hosted site. Search is checked either way; the
@@ -267,22 +275,55 @@ try {
   ok('a11y: motion is optional', await ev(`[...[...document.styleSheets].find(s=>!s.href).cssRules]
       .some(r=>/prefers-reduced-motion/.test(r.conditionText||''))`));
 
-  // contrast, measured against what is actually painted
+  /* Contrast, measured against what is actually painted — and this loop used to
+     read less than it claimed. Three things it could not see:
+       opacity — .tap.off faded its own text to 2.63:1 and the zero due count to
+         1.57:1, both of which read as a comfortable 6.16:1 here
+       translucent backgrounds — an rgba() surface was treated as opaque instead
+         of composited over what sits behind it
+       svg text — it is painted by `fill`, and reading `color` never saw a chart
+     A selector that is not on screen now prints SKIP instead of vanishing: the
+     old `continue` meant a typo'd selector was indistinguishable from a pass. */
   const contrast = await ev(`(()=>{
-    const lum=c=>{const [r,g,b]=c.match(/\\d+/g).slice(0,3).map(v=>{v/=255;
+    const px=s=>{const m=(s||'').match(/[\\d.]+/g)||[]; return [+m[0]||0,+m[1]||0,+m[2]||0, m[3]===undefined?1:+m[3]];};
+    const over=(f,b)=>[f[0]*f[3]+b[0]*(1-f[3]), f[1]*f[3]+b[1]*(1-f[3]), f[2]*f[3]+b[2]*(1-f[3]), 1];
+    const lum=c=>{const [r,g,b]=c.slice(0,3).map(v=>{v/=255;
       return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});
       return .2126*r+.7152*g+.0722*b;};
     const ratio=(a,b)=>{const [x,y]=[lum(a),lum(b)].sort((p,q)=>q-p); return (x+.05)/(y+.05);};
-    const bg=getComputedStyle(document.body).backgroundColor;
+    // the colour really behind an element: composite every translucent ancestor
+    const bgOf=el=>{
+      let out=null;
+      for(let n=el;n;n=n.parentElement){
+        const c=px(getComputedStyle(n).backgroundColor);
+        if(!c[3]) continue;
+        out = out ? over(out,c) : c;
+        if(c[3]===1) break;
+      }
+      return out || px(getComputedStyle(document.body).backgroundColor);
+    };
+    // opacity multiplies down the tree, so a faded row dims its own text
+    const opacityOf=el=>{let o=1;
+      for(let n=el;n&&n!==document.documentElement;n=n.parentElement) o*=parseFloat(getComputedStyle(n).opacity)||0;
+      return o;};
     const out=[];
-    for(const sel of ['.tap-name','.tap-style','.tap-pct','.subline','.panel-note','.mast-right','.footnote','h2.area','.search-count']){
-      const el=document.querySelector(sel); if(!el) continue;
+    for(const sel of ['.tap.on .tap-name','.tap.off .tap-name','.tap.off .tap-style','.tap-style','.tap-pct',
+                      '.tap-due.zero','.area-n','.subline','.panel-note','.mast-right','.footnote',
+                      'h2.area','.search-count','.dive','.keys','.list-head span']){
+      const el=document.querySelector(sel);
+      if(!el){ out.push({sel,missing:true}); continue; }
       const cs=getComputedStyle(el);
-      out.push({sel, ratio:+ratio(cs.color,bg).toFixed(2), size:parseFloat(cs.fontSize), weight:cs.fontWeight});
+      const bg=bgOf(el);
+      const isSvg=!!(el.namespaceURI&&el.namespaceURI.includes('svg'));
+      const raw=px(isSvg?cs.fill:cs.color);
+      raw[3]*=opacityOf(el);
+      out.push({sel, ratio:+ratio(over(raw,bg),bg).toFixed(2),
+                size:parseFloat(cs.fontSize), weight:cs.fontWeight});
     }
     return out;
   })()`);
   for (const c of contrast) {
+    if (c.missing) { console.log(`SKIP  a11y: ${c.sel} is not on screen here — not measured`); continue; }
     const large = c.size >= 24 || (c.size >= 18.66 && +c.weight >= 700);
     const need = large ? 3 : 4.5;
     ok(`a11y: ${c.sel} contrast ${c.ratio}:1 clears ${need}:1`, c.ratio >= need);

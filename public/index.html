@@ -82,7 +82,9 @@ h1 em{font-style:normal;color:var(--amber)}
   padding:13px 6px 13px 0;border-bottom:1px solid var(--rule);cursor:pointer;
   transition:background .12s;text-align:left;width:100%}
 .tap:hover{background:rgba(242,233,218,.04)}
-.tap.off{opacity:.52}
+/* "Off" is carried by the empty checkbox and the dimmed name, not by fading the
+   whole row: opacity dimmed the text too, and a measurement cannot see through
+   it. Foam-dim on walnut is 6.16:1; the same text at .52 was 2.63:1. */
 .tap.off .tap-name{color:var(--foam-dim)}
 .tap-check{width:16px;height:16px;border:1.5px solid var(--foam-dim);position:relative}
 .tap.on .tap-check{border-color:var(--amber);background:var(--amber)}
@@ -95,10 +97,11 @@ h1 em{font-style:normal;color:var(--amber)}
 .tap-pct{font-family:var(--mono);font-size:10px;color:var(--foam-dim);margin-top:5px;letter-spacing:.04em}
 .tap-due{font-family:var(--disp);font-size:24px;text-align:right;line-height:1}
 .tap-due small{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--foam-dim);margin-top:2px}
-.tap-due.zero{color:var(--foam-dim);opacity:.5}
+.tap-due.zero{color:var(--foam-dim)}
 .area{font-family:var(--mono);font-weight:400;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
   color:var(--copper);padding:26px 0 7px;border-bottom:1px solid var(--rule)}
 .area:first-child{padding-top:10px}
+.area-n{color:var(--foam-dim)}
 .search-row{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
 .search-row input{flex:1;background:var(--stout);border:1px solid var(--rule);color:var(--foam);
   font-family:var(--mono);font-size:12px;letter-spacing:.04em;padding:10px 12px}
@@ -834,7 +837,7 @@ function renderBoard(){
     // whatever is switched on stays visible; the rest is what gets trimmed
     const ranked=[...all.filter(c=>catOn(c.id)),...all.filter(c=>!catOn(c.id))];
     const capped=filter||expanded.has(a)?ranked:ranked.slice(0,PER_AREA);
-    rows.push(`<h2 class="area">${esc(a)} <span style="opacity:.6">· ${all.length}</span></h2>`);
+    rows.push(`<h2 class="area">${esc(a)} <span class="area-n">· ${all.length}</span></h2>`);
     for(const c of capped) rows.push(
       `<div class="tap-row">${tapRow(c)}<button class="dive" data-dive="${esc(c.id)}" aria-label="Dive into ${esc(c.name)} — drill only this, without changing what is switched on">Dive</button></div>`);
     if(capped.length<ranked.length)
