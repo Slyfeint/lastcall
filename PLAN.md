@@ -88,10 +88,13 @@ Eleven categories sat under 90 cards, which is what made a night come round twic
 - [x] typing never moves other people's money — Enter on an empty box used to take a tile off a named person with no appeal — and the stake row says what the tile is worth instead of "+1"
 - [x] the board explains itself: modes grouped with a caption each, games marked as leaving your schedule alone, a disabled control saying why where it is, one first-run paragraph derived from whether anything was ever drilled, and the tagline no longer overwritten by an inventory count one frame after it appears
 - [x] several people, one phone: personal schedule/history/streak/typing, shared cards, decks and table record, one atomic key, `S` unchanged in shape, and a v3→v4 migration with the v1 chain still intact
+- [x] settings: four themes, three type choices, three text sizes, cards per sitting and whether a miss comes round again. The look is the device's, in its own key, applied before first paint; the drill knobs are the person's and ride `PERSONAL`. The contrast sweep now photographs the page and runs for all four themes — 116 ratios, floor 4.61:1
+- [ ] the glow is a `repeat` background layer, so it re-paints every viewport-height down the page, and a copper heading landing in a lit band reads 4.13:1 at 412x915 — and 4.47:1 for the section headings there, 4.34:1 at 414x896, 4.47:1 at 428x926 — against 4.61:1 on plain walnut. It reads the same at HEAD, so it predates the presets. One `no-repeat` fixes it at the root; lightening copper does not. It changes how the default theme looks, so it waits for a decision instead of being taken quietly
 
 ## Not doing
 
 - accounts, leaderboards, any backend. Local profiles are not an exception to this: there is no sign-in, no server and no network call, nothing is sent anywhere, and a backup is still a file you carry yourself. The test for whether something crosses the line is whether it leaves the device, not whether it has a name on it
 - cross-device sync, which would need a merge basis `S` does not have — no device id, no per-field mtime, no counter. Restore is whole-blob and last-write-wins, and honest about it
+- a manifest generated at runtime. `manifest.webmanifest` is a static file, so its `background_color` and `theme_color` stay dark and an installed app on a light preset flashes the dark splash on a cold launch. Rewriting it into a blob URL at boot means an install path the browser may not honour and a second home for four hex values, to spare one frame. Documented in the README instead
 - a framework or a bundler
 - shipping Jeopardy clues to the public site

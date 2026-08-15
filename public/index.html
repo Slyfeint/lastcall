@@ -42,33 +42,130 @@
   --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
   /* Three mono steps, not seven. Half-pixel gaps between 8.5 and 12 were four
      tiers of information pretending to be seven. */
-  --m-lg:12px;          /* mono you are meant to read */
-  --m:10px;             /* labels and meta */
-  --m-sm:9.5px;         /* signage */
+  --m-lg:calc(12px * var(--ts));   /* mono you are meant to read */
+  --m:calc(10px * var(--ts));      /* labels and meta */
+  --m-sm:calc(9.5px * var(--ts));  /* signage */
+  /* Every colour below the ramp exists because a preset has to redefine it and
+     it was a literal somewhere else in the sheet. --on-amber is the ink that
+     sits on an --amber fill: on a light preset that is white, and it was
+     --stout at seven declarations. --wash is the foam-at-12% hairline that was
+     never tokenised — the mastery bar, the drill progress, the readiness
+     meter, the category tracks. Both go invisible on a light ground. */
+  --on-amber:#150F0B;
+  --wash:rgba(242,233,218,.12);
+  --wash-dim:rgba(242,233,218,.06);
+  /* Two washes were a step off that pair before there were any tokens — the
+     mastery track at .10, the row hover at .04 — and folding them into --wash
+     and --wash-dim repainted the default preset. They exist as tokens only so a
+     light preset can paint them at all; every preset collapses them back. */
+  --wash-lo:rgba(242,233,218,.10);
+  --wash-faint:rgba(242,233,218,.04);
+  --glow:rgba(224,161,40,.09);
+  --grain:rgba(0,0,0,.16);
+  --ts:1;
   color-scheme:dark;    /* or the search clear button and number spinners come out light */
 }
+/* A preset redefines colour and nothing else. Structure, spacing and every
+   literal px in this sheet are the same in all four. --heat-0 is --bar and
+   --heat-5 is --amber in each of them, and 1..4 are a straight OKLab
+   interpolation between the two, so the ramp steps by ~.095 lightness
+   whichever way round it runs. The lowest ratio in any preset is 5.03:1. */
+:root[data-theme="slate"]{
+  --walnut:#171A1F; --stout:#101318; --bar:#212731;
+  --amber:#6FC0E8;      /* 8.62:1 */
+  --copper:#C89A6B;     /* 6.89:1 */
+  --foam:#E6EAF0;       /* 14.45:1 */
+  --foam-dim:#9BA4B2;   /* 6.93:1 */
+  --sage:#7FBF8F;       /* 8.10:1 */
+  --wrong:#E8888A;      /* 6.91:1 */
+  --on-amber:#101318;
+  --rule:rgba(230,234,240,.15);
+  --wash:rgba(230,234,240,.13); --wash-dim:rgba(230,234,240,.07);
+  --wash-lo:var(--wash); --wash-faint:var(--wash-dim);
+  --glow:rgba(111,192,232,.08); --grain:rgba(0,0,0,.18);
+  --heat-0:#212731; --heat-1:#304252; --heat-2:#405F74;
+  --heat-3:#4F7E99; --heat-4:#5F9FC0; --heat-5:#6FC0E8;
+  color-scheme:dark;
+}
+/* The page is the lightest surface here and the panel and card are tinted
+   down, which is the opposite of the dark presets. Not a taste call: with a
+   white card the ramp's first step sits within .05 lightness of the page and
+   measured 1.18:1 against it. Tinted, heat-1 is 1.57:1 — the dark default's
+   own number. */
+:root[data-theme="paper"]{
+  --walnut:#FFFDF8; --stout:#F6F1E7; --bar:#F0E9DB;
+  --amber:#8F5410;      /* 6.00:1 */
+  --copper:#7A4A2A;     /* 7.27:1 */
+  --foam:#221F1A;       /* 16.15:1 */
+  --foam-dim:#6A6156;   /* 5.98:1 */
+  --sage:#3E6B45;       /* 6.09:1 */
+  --wrong:#B0332F;      /* 6.15:1 */
+  --on-amber:#FFFFFF;
+  --rule:rgba(34,31,26,.18);
+  --wash:rgba(34,31,26,.14); --wash-dim:rgba(34,31,26,.07);
+  --wash-lo:var(--wash); --wash-faint:var(--wash-dim);
+  --glow:rgba(143,84,16,.05); --grain:rgba(0,0,0,.045);
+  --heat-0:#F0E9DB; --heat-1:#DDCAB4; --heat-2:#CAAC8D;
+  --heat-3:#B78E67; --heat-4:#A37140; --heat-5:#8F5410;
+  color-scheme:light;
+}
+/* Nothing here is under 6:1, and the glow and the grain are off: the texture
+   is the first thing to cost you a letter in bright light. */
+:root[data-theme="contrast"]{
+  --walnut:#FFFFFF; --stout:#F0F0F0; --bar:#E6E6E6;
+  --amber:#8A3B00;      /* 7.76:1 */
+  --copper:#6B2E12;     /* 10.37:1 */
+  --foam:#0B0B0B;       /* 19.68:1 */
+  --foam-dim:#45454A;   /* 9.53:1 */
+  --sage:#1C5C2A;       /* 8.03:1 */
+  --wrong:#A01414;      /* 8.06:1 */
+  --on-amber:#FFFFFF;
+  --rule:rgba(11,11,11,.32);
+  --wash:rgba(11,11,11,.22); --wash-dim:rgba(11,11,11,.12);
+  --wash-lo:var(--wash); --wash-faint:var(--wash-dim);
+  --glow:transparent; --grain:transparent;
+  --heat-0:#E6E6E6; --heat-1:#D6C3BA; --heat-2:#C4A18F;
+  --heat-3:#B27F65; --heat-4:#9F5D3B; --heat-5:#8A3B00;
+  color-scheme:light;
+}
+/* The one <link> in the head fetches all three families whatever is chosen
+   here, so no option adds a request — and the system stack uses none. */
+:root[data-font="system"]{
+  --disp:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --body:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:ui-monospace,'SF Mono',Consolas,monospace;
+}
+/* --body only. Antonio is the product's face and the question is set in it, so
+   this option changes the answers, the notes and the prose — which is what the
+   option says, rather than "serif" full stop. */
+:root[data-font="serif"]{ --body:Georgia,'Times New Roman',serif; }
+/* Scale multiplies font sizes and nothing else. No padding, no min-height, no
+   border width moves, so a 44px control is still 44px at the small step by
+   construction rather than by arithmetic. */
+:root[data-size="s"]{--ts:.92}
+:root[data-size="l"]{--ts:1.18}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
   background:var(--walnut);
   background-image:
-    radial-gradient(ellipse 120% 80% at 50% -10%, rgba(224,161,40,.09), transparent 60%),
-    repeating-linear-gradient(94deg, rgba(0,0,0,.16) 0 2px, transparent 2px 7px);
+    radial-gradient(ellipse 120% 80% at 50% -10%, var(--glow), transparent 60%),
+    repeating-linear-gradient(94deg, var(--grain) 0 2px, transparent 2px 7px);
   color:var(--foam);
   font-family:var(--body);
-  font-size:16px;
+  font-size:calc(16px * var(--ts));
   line-height:1.5;
   -webkit-font-smoothing:antialiased;
 }
 .wrap{max-width:940px;margin:0 auto;padding:28px 20px 80px}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
-button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+button:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 
 /* ---------- masthead ---------- */
 .mast{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
   border-bottom:2px solid var(--foam);padding-bottom:10px;margin-bottom:6px;flex-wrap:wrap}
 .eyebrow{font-family:var(--mono);font-size:var(--m);letter-spacing:.22em;text-transform:uppercase;color:var(--amber)}
-h1{font-family:var(--disp);font-weight:700;font-size:clamp(40px,9vw,68px);line-height:.86;
+h1{font-family:var(--disp);font-weight:700;font-size:calc(clamp(40px,9vw,68px) * var(--ts));line-height:.86;
   text-transform:uppercase;letter-spacing:-.01em}
 h1 em{font-style:normal;color:var(--amber)}
 .mast-right{font-family:var(--mono);font-size:var(--m-lg);color:var(--foam-dim);text-align:right;letter-spacing:.06em}
@@ -80,14 +177,14 @@ h1 em{font-style:normal;color:var(--amber)}
 .notice{font-family:var(--mono);font-size:var(--m);letter-spacing:.05em;color:var(--foam);
   border-left:3px solid var(--amber);padding:9px 12px;margin:-18px 0 26px}
 .notice.bad{border-left-color:var(--wrong)}
-.first-run{font-family:var(--body);font-size:15px;color:var(--foam-dim);line-height:1.6;
+.first-run{font-family:var(--body);font-size:calc(15px * var(--ts));color:var(--foam-dim);line-height:1.6;
   max-width:640px;margin:-18px 0 26px}
 .first-run b{color:var(--foam);font-weight:600}
 .shelf-note{display:block;margin-bottom:10px;color:var(--copper)}
 .who{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 .who-chip{font-family:var(--mono);font-size:var(--m);letter-spacing:.06em;text-transform:uppercase;
   padding:10px 14px;min-height:44px;border:1px solid var(--rule);color:var(--foam-dim)}
-.who-chip[aria-pressed="true"]{border-color:var(--amber);color:var(--stout);background:var(--amber)}
+.who-chip[aria-pressed="true"]{border-color:var(--amber);color:var(--on-amber);background:var(--amber)}
 #whoAddRow{margin-bottom:14px;max-width:420px}
 .subline{font-family:var(--mono);font-size:var(--m);letter-spacing:.16em;text-transform:uppercase;
   color:var(--foam-dim);margin-bottom:30px}
@@ -95,7 +192,7 @@ h1 em{font-style:normal;color:var(--amber)}
 /* ---------- start panel ---------- */
 .panel{background:var(--stout);border:1px solid var(--rule);padding:22px 22px 20px;margin-bottom:26px}
 .panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
-.panel-title{font-family:var(--disp);font-size:22px;text-transform:uppercase;letter-spacing:.04em}
+.panel-title{font-family:var(--disp);font-size:calc(22px * var(--ts));text-transform:uppercase;letter-spacing:.04em}
 .panel-note{font-family:var(--mono);font-size:var(--m);color:var(--foam-dim);letter-spacing:.05em}
 .actions{display:flex;gap:12px;flex-wrap:wrap}
 /* Six buttons in one undifferentiated row asked you to choose between five
@@ -111,11 +208,18 @@ h1 em{font-style:normal;color:var(--amber)}
 .panel-foot{display:flex;gap:12px;flex-wrap:wrap;align-items:center;
   margin-top:22px;padding-top:16px;border-top:1px solid var(--rule)}
 .mode .btn:disabled+.cap{color:var(--amber)}
-.btn{font-family:var(--disp);font-size:19px;text-transform:uppercase;letter-spacing:.05em;
+.btn{font-family:var(--disp);font-size:calc(19px * var(--ts));text-transform:uppercase;letter-spacing:.05em;
   padding:11px 22px;border:1.5px solid var(--foam);transition:background .14s,color .14s,border-color .14s}
-.btn-go{background:var(--amber);border-color:var(--amber);color:var(--stout)}
-.btn:disabled{opacity:.35;cursor:not-allowed}
-.btn-sm{font-size:14px;padding:7px 14px;border-width:1px}
+.btn-go{background:var(--amber);border-color:var(--amber);color:var(--on-amber)}
+/* "Unavailable" is a state you have to read — btnDrill is off on any rest day
+   and btnBoardGame whenever fewer than two categories are eligible — so it is
+   dim ink and a hairline border, not a fade over the whole control. At .35 the
+   label measured 2.86:1 here and 2.12:1 on paper, and a .btn-go's own ink on
+   its own faded fill was 2.03:1 and 1.73:1. The fill is --wash-dim rather than
+   --wash because --wash on paper darkens the ground to 4.10:1 under the label. */
+.btn:disabled{color:var(--foam-dim);border-color:var(--rule);cursor:not-allowed}
+.btn-go:disabled{background:var(--wash-dim)}
+.btn-sm{font-size:calc(14px * var(--ts));padding:7px 14px;border-width:1px}
 
 /* ---------- tap list (signature) ---------- */
 .list-head{display:flex;align-items:baseline;justify-content:space-between;
@@ -137,23 +241,27 @@ h1 em{font-style:normal;color:var(--amber)}
 .tap.off .tap-name{color:var(--foam-dim)}
 .tap-check{width:16px;height:16px;border:1.5px solid var(--foam-dim);position:relative}
 .tap.on .tap-check{border-color:var(--amber);background:var(--amber)}
-.tap.on .tap-check::after{content:"";position:absolute;inset:3px 3px;border-left:2px solid var(--stout);
-  border-bottom:2px solid var(--stout);transform:rotate(-45deg) translate(1px,-1px);height:5px}
-.tap-name{font-family:var(--disp);font-size:21px;text-transform:uppercase;letter-spacing:.03em;line-height:1}
-.tap-style{font-family:var(--body);font-style:italic;font-size:12.5px;color:var(--foam-dim);margin-top:3px}
+.tap.on .tap-check::after{content:"";position:absolute;inset:3px 3px;border-left:2px solid var(--on-amber);
+  border-bottom:2px solid var(--on-amber);transform:rotate(-45deg) translate(1px,-1px);height:5px}
+.tap-name{font-family:var(--disp);font-size:calc(21px * var(--ts));text-transform:uppercase;letter-spacing:.03em;line-height:1}
+.tap-style{font-family:var(--body);font-style:italic;font-size:calc(12.5px * var(--ts));color:var(--foam-dim);margin-top:3px}
 /* display:block, or the height and the fill inside it are simply ignored — as
    an inline span this measured 0px wide and had never drawn a bar at all. */
-.tap-bar{display:block;height:5px;background:rgba(242,233,218,.12);position:relative;overflow:hidden}
+.tap-bar{display:block;height:5px;background:var(--wash);position:relative;overflow:hidden}
 .tap-fill{position:absolute;inset:0 auto 0 0;background:var(--amber);transition:width .5s ease}
 .tap-pct{font-family:var(--mono);font-size:var(--m);color:var(--foam-dim);margin-top:5px;letter-spacing:.04em}
-.tap-due{font-family:var(--disp);font-size:24px;text-align:right;line-height:1}
+.tap-due{font-family:var(--disp);font-size:calc(24px * var(--ts));text-align:right;line-height:1}
 .tap-due small{display:block;font-family:var(--mono);font-size:var(--m-sm);letter-spacing:.14em;color:var(--foam-dim);margin-top:2px}
 .tap-due.zero{color:var(--foam-dim)}
 .area{padding:26px 0 7px;border-bottom:1px solid var(--rule)}
 .area:first-child{padding-top:10px}
 .area-n{color:var(--foam-dim)}
 .search-row{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
-.search-row input{flex:1;background:var(--stout);border:1px solid var(--rule);color:var(--foam);
+/* min-width:0 or the flex:1 does nothing: a text input's automatic minimum is
+   its own intrinsic width, so the row could not shrink below that box plus the
+   nowrap count beside it. At the large text step that floor was 436px on a
+   390px phone, in every family but the one the check happened to measure. */
+.search-row input{flex:1;min-width:0;background:var(--stout);border:1px solid var(--rule);color:var(--foam);
   font-family:var(--mono);font-size:var(--m-lg);letter-spacing:.04em;padding:10px 12px}
 .search-row input::placeholder{color:var(--foam-dim)}
 .search-row input:focus{outline:1px solid var(--amber)}
@@ -165,7 +273,12 @@ h1 em{font-style:normal;color:var(--amber)}
 .dive{font-family:var(--mono);font-size:var(--m-sm);letter-spacing:.16em;text-transform:uppercase;
   color:var(--foam-dim);border-bottom:1px solid var(--rule);border-left:1px solid var(--rule);
   padding:0 12px;white-space:nowrap}
-.tap.busy{opacity:.6;cursor:progress}
+/* No row-wide fade, for the reason .tap.off has none: it dims the row's own
+   text, and on the paper preset .6 put the style line at 2.57:1 and the name at
+   4.34:1. Nothing survives lifting it either — foam-dim there is 5.98:1 at full
+   strength, so any fade that still reads as a fade is already under 4.5:1.
+   Loading is carried by the copper bar, the "loading…" count and the cursor. */
+.tap.busy{cursor:progress}
 .tap.busy .tap-fill{width:100%!important;background:var(--copper);animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.35}}
 
@@ -174,19 +287,19 @@ h1 em{font-style:normal;color:var(--amber)}
 .stage.live{display:block}
 .board{display:none}
 .board.live{display:block}
-.progress{height:3px;background:rgba(242,233,218,.12);margin-bottom:20px}
+.progress{height:3px;background:var(--wash);margin-bottom:20px}
 .progress-fill{height:100%;background:var(--amber);transition:width .3s}
 .card{display:grid;grid-template-columns:52px 1fr;min-height:340px;
   background:var(--bar);border:1px solid var(--rule);margin-bottom:18px}
 .handle{background:var(--stout);border-right:1px solid var(--rule);
   display:flex;align-items:center;justify-content:center}
-.handle span{font-family:var(--disp);font-size:14px;text-transform:uppercase;letter-spacing:.28em;
+.handle span{font-family:var(--disp);font-size:calc(14px * var(--ts));text-transform:uppercase;letter-spacing:.28em;
   writing-mode:vertical-rl;transform:rotate(180deg);color:var(--amber);white-space:nowrap}
 .face{padding:34px 30px;display:flex;flex-direction:column;justify-content:center;gap:22px}
-.q{font-family:var(--disp);font-weight:400;font-size:clamp(25px,4.6vw,38px);line-height:1.12;letter-spacing:.005em}
+.q{font-family:var(--disp);font-weight:400;font-size:calc(clamp(25px,4.6vw,38px) * var(--ts));line-height:1.12;letter-spacing:.005em}
 .a-wrap{border-top:1px solid var(--rule);padding-top:20px}
-.a{font-family:var(--body);font-weight:600;font-size:clamp(20px,3.4vw,27px);color:var(--amber);line-height:1.25}
-.note{font-family:var(--body);font-style:italic;font-size:14px;color:var(--foam-dim);margin-top:9px;line-height:1.45}
+.a{font-family:var(--body);font-weight:600;font-size:calc(clamp(20px,3.4vw,27px) * var(--ts));color:var(--amber);line-height:1.25}
+.note{font-family:var(--body);font-style:italic;font-size:calc(14px * var(--ts));color:var(--foam-dim);margin-top:9px;line-height:1.45}
 /* !important because .grades and .type-row are declared later with the same
    specificity, and without it a "hidden" grade row renders anyway */
 .hidden{display:none!important}
@@ -195,7 +308,7 @@ h1 em{font-style:normal;color:var(--amber)}
    used to differ only on :hover, so on the phone this is played on they were
    three identical grey rectangles. */
 .grade{border:1.5px solid var(--rule);border-top-width:4px;padding:14px 10px;text-align:center;transition:background .13s}
-.grade b{display:block;font-family:var(--disp);font-size:19px;text-transform:uppercase;letter-spacing:.04em}
+.grade b{display:block;font-family:var(--disp);font-size:calc(19px * var(--ts));text-transform:uppercase;letter-spacing:.04em}
 .grade i{display:block;font-family:var(--mono);font-style:normal;font-size:var(--m-sm);letter-spacing:.12em;
   color:var(--foam-dim);margin-top:4px}
 .g1{border-top-color:var(--wrong)}
@@ -208,7 +321,7 @@ h1 em{font-style:normal;color:var(--amber)}
 /* ---------- typed answers ---------- */
 .type-row{display:flex;gap:12px;margin-bottom:12px}
 .type-row input{flex:1;background:var(--stout);border:1.5px solid var(--rule);color:var(--foam);
-  font-family:var(--body);font-size:20px;padding:12px 16px}
+  font-family:var(--body);font-size:max(16px, calc(20px * var(--ts)));padding:12px 16px}
 .type-row input:focus{outline:none;border-color:var(--amber)}
 /* No tint behind the text: coloured type on a 10-16% wash of its own hue is
    arithmetically self-defeating. The left edge carries the verdict instead. */
@@ -220,14 +333,14 @@ h1 em{font-style:normal;color:var(--amber)}
 .verdict b{font-weight:400;color:var(--foam)}
 .toggle{font-family:var(--mono);font-size:var(--m);letter-spacing:.14em;text-transform:uppercase;
   color:var(--foam-dim);border:1px solid var(--rule);padding:7px 12px}
-.toggle[aria-pressed="true"]{color:var(--stout);background:var(--amber);border-color:var(--amber)}
+.toggle[aria-pressed="true"]{color:var(--on-amber);background:var(--amber);border-color:var(--amber)}
 
 /* ---------- the form guide ---------- */
 .hero{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:6px}
-.hero-num{font-family:var(--disp);font-size:88px;line-height:.85;color:var(--amber)}
-.hero-num small{font-size:30px;color:var(--foam-dim)}
-.hero-say{font-family:var(--body);font-size:15px;color:var(--foam-dim);max-width:420px;line-height:1.45}
-.meter{height:8px;background:rgba(242,233,218,.12);margin:16px 0 8px;position:relative}
+.hero-num{font-family:var(--disp);font-size:calc(88px * var(--ts));line-height:.85;color:var(--amber)}
+.hero-num small{font-size:calc(30px * var(--ts));color:var(--foam-dim)}
+.hero-say{font-family:var(--body);font-size:calc(15px * var(--ts));color:var(--foam-dim);max-width:420px;line-height:1.45}
+.meter{height:8px;background:var(--wash);margin:16px 0 8px;position:relative}
 .meter i{position:absolute;inset:0 auto 0 0;background:var(--amber)}
 /* The readiness arithmetic is the app's argument for its own honesty. Printing
    it in the second-smallest type in the building was printing it without
@@ -240,9 +353,9 @@ h1 em{font-style:normal;color:var(--amber)}
 .bars{display:flex;flex-direction:column;gap:2px}
 .bar-row{display:grid;width:100%;text-align:left;cursor:pointer;grid-template-columns:1fr auto;gap:2px 12px;padding:9px 0;
   border-bottom:1px solid var(--rule);align-items:baseline}
-.bar-name{font-family:var(--disp);font-size:17px;text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
+.bar-name{font-family:var(--disp);font-size:calc(17px * var(--ts));text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
 .bar-val{font-family:var(--mono);font-size:var(--m);color:var(--foam-dim);letter-spacing:.04em;white-space:nowrap}
-.track{grid-column:1/-1;height:11px;border-radius:4px;background:rgba(242,233,218,.10);overflow:hidden;margin-top:5px}
+.track{grid-column:1/-1;height:11px;border-radius:4px;background:var(--wash-lo);overflow:hidden;margin-top:5px}
 .mark{display:block;height:100%;border-radius:4px;background:var(--amber);min-width:2px}
 .chart .axis{stroke:var(--rule);stroke-width:1}
 .chart .line{fill:none;stroke:var(--amber);stroke-width:2;stroke-linejoin:round}
@@ -253,13 +366,13 @@ h1 em{font-style:normal;color:var(--amber)}
 .legend span{width:14px;height:14px;display:inline-block}
 .empty{font-family:var(--body);font-style:italic;color:var(--foam-dim);padding:18px 0}
 .leech-row{display:flex;justify-content:space-between;gap:16px;padding:11px 0;
-  border-bottom:1px solid var(--rule);font-size:14.5px}
+  border-bottom:1px solid var(--rule);font-size:calc(14.5px * var(--ts))}
 .leech-row b{color:var(--amber);font-weight:600}
 .leech-n{font-family:var(--mono);font-size:var(--m);color:var(--wrong);white-space:nowrap}
 
 /* ---------- the board game ---------- */
 .quiz-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:16px}
-.quiz-score{font-family:var(--disp);font-size:44px;line-height:1;color:var(--amber)}
+.quiz-score{font-family:var(--disp);font-size:calc(44px * var(--ts));line-height:1;color:var(--amber)}
 .quiz-score.neg{color:var(--wrong)}
 .quiz-head>div:last-child{margin-left:auto}
 #seatRow{margin-bottom:6px}
@@ -268,22 +381,22 @@ h1 em{font-style:normal;color:var(--amber)}
 .players{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;list-style:none;padding:0}
 .pl{font-family:var(--mono);font-size:var(--m-lg);letter-spacing:.04em;padding:7px 12px;
   border:1px solid var(--rule);border-radius:6px;color:var(--foam-dim)}
-.pl b{color:var(--foam);font-family:var(--disp);font-size:17px;margin-left:8px;letter-spacing:.02em}
+.pl b{color:var(--foam);font-family:var(--disp);font-size:calc(17px * var(--ts));margin-left:8px;letter-spacing:.02em}
 .pl.turn{border-color:var(--amber);color:var(--foam)}
 .pl.turn b{color:var(--amber)}
 .pl.neg b{color:var(--wrong)}
 .missed b.neg,.games-row b.neg{color:var(--wrong)}
-.games-row{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.games-row{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:calc(14px * var(--ts))}
 .games-row b{color:var(--amber)}
 .games-when{font-family:var(--mono);font-size:var(--m);color:var(--foam-dim);letter-spacing:.05em;white-space:nowrap}
 .grid-wrap{overflow-x:auto}                 /* six columns will not fit a phone */
 .grid{display:grid;gap:4px;min-width:640px}
 .grid-cat{background:var(--stout);border:1px solid var(--rule);padding:12px 8px;min-height:74px;
   display:flex;align-items:center;justify-content:center;text-align:center;
-  font-family:var(--disp);font-size:14px;line-height:1.05;text-transform:uppercase;letter-spacing:.03em}
+  font-family:var(--disp);font-size:calc(14px * var(--ts));line-height:1.05;text-transform:uppercase;letter-spacing:.03em}
 .tile{background:var(--bar);border:1px solid var(--rule);padding:18px 8px;
-  font-family:var(--disp);font-size:26px;color:var(--amber);transition:background .12s}
-.tile:disabled{background:transparent;color:transparent;cursor:default;border-color:rgba(242,233,218,.06)}
+  font-family:var(--disp);font-size:calc(26px * var(--ts));color:var(--amber);transition:background .12s}
+.tile:disabled{background:transparent;color:transparent;cursor:default;border-color:var(--wash-dim)}
 
 .wager{max-width:420px;margin:0 auto 22px;text-align:left}
 .wager-label{font-family:var(--mono);font-size:var(--m);letter-spacing:.14em;text-transform:uppercase;
@@ -296,18 +409,18 @@ h1 em{font-style:normal;color:var(--amber)}
 .pip.hit{background:var(--sage);border-color:var(--sage)}
 .pip.miss{background:var(--wrong);border-color:var(--wrong)}
 .result{text-align:center;padding:46px 20px}
-.result .score{font-family:var(--disp);font-size:88px;line-height:.9;color:var(--amber)}
-.result .score small{font-size:30px;color:var(--foam-dim)}
+.result .score{font-family:var(--disp);font-size:calc(88px * var(--ts));line-height:.9;color:var(--amber)}
+.result .score small{font-size:calc(30px * var(--ts));color:var(--foam-dim)}
 .result p{font-family:var(--mono);font-size:var(--m-lg);letter-spacing:.16em;text-transform:uppercase;
   color:var(--foam-dim);margin:14px 0 26px}
 .missed{text-align:left;max-width:560px;margin:0 auto 26px;border-top:1px solid var(--rule)}
-.missed li{list-style:none;padding:11px 0;border-bottom:1px solid var(--rule);font-size:14.5px}
+.missed li{list-style:none;padding:11px 0;border-bottom:1px solid var(--rule);font-size:calc(14.5px * var(--ts))}
 .missed li b{color:var(--amber);font-weight:600}
 .missed-head{padding:12px 0 0;text-align:left;max-width:560px;margin:0 auto}
 
 /* ---------- drawer ---------- */
 .drawer{border:1px solid var(--rule);background:var(--stout);margin-top:26px;padding:0 18px}
-.drawer summary{font-family:var(--disp);font-size:17px;text-transform:uppercase;letter-spacing:.05em;
+.drawer summary{font-family:var(--disp);font-size:calc(17px * var(--ts));text-transform:uppercase;letter-spacing:.05em;
   padding:13px 0;cursor:pointer;color:var(--amber)}
 .drawer[open]{padding-bottom:18px}
 .drawer-note{font-family:var(--mono);font-size:var(--m);color:var(--foam-dim);letter-spacing:.05em;
@@ -325,15 +438,17 @@ h1 em{font-style:normal;color:var(--amber)}
 /* Hover belongs to devices that have a pointer. On a phone these stick after
    a tap until you tap something else, and half of them invert the control. */
 @media(hover:hover){
-  .btn:hover{background:var(--foam);color:var(--walnut)}
-  .btn-go:hover{background:var(--foam);border-color:var(--foam);color:var(--stout)}
-  .btn:disabled:hover{background:none;color:inherit}
-  .tap:hover{background:rgba(242,233,218,.04)}
+  /* :not(:disabled) rather than a third rule putting the hover back: a disabled
+     button now carries a colour of its own, and "background:none;color:inherit"
+     would hand it back to the body's foam the moment a pointer crossed it. */
+  .btn:hover:not(:disabled){background:var(--foam);color:var(--walnut)}
+  .btn-go:hover:not(:disabled){background:var(--foam);border-color:var(--foam);color:var(--on-amber)}
+  .tap:hover{background:var(--wash-faint)}
   .more:hover{color:var(--amber)}
-  .dive:hover{color:var(--stout);background:var(--amber);border-color:var(--amber)}
+  .dive:hover{color:var(--on-amber);background:var(--amber);border-color:var(--amber)}
   .chart .mark:hover{fill:var(--foam)}
   .cell:hover{stroke:var(--foam)}
-  .tile:hover:not(:disabled){background:var(--amber);color:var(--stout)}
+  .tile:hover:not(:disabled){background:var(--amber);color:var(--on-amber)}
   .reset:hover{color:var(--wrong)}
 }
 @media(max-width:620px){
@@ -348,7 +463,7 @@ h1 em{font-style:normal;color:var(--amber)}
   .list-head span:nth-child(2){display:none}
   .face{padding:26px 20px}
   .card{grid-template-columns:40px 1fr;min-height:300px}
-  .btn{font-size:17px;padding:13px 16px}
+  .btn{font-size:calc(17px * var(--ts));padding:13px 16px}
   .mode{flex:1 1 100%}
   .quiz-head{flex-wrap:wrap}
   /* keyboard hints on a device with no keyboard cost a whole row */
@@ -358,22 +473,83 @@ h1 em{font-style:normal;color:var(--amber)}
    browser's back gesture, which loses the game rather than scrolls it. */
 .grid-wrap{overscroll-behavior-x:contain}
 /* Under 16px iOS zooms into a field on focus and never zooms back out. The
-   answer box is already 20px, so only the two small fields need lifting. */
-.search-row input,.drawer textarea{font-size:16px}
+   answer box is already 20px, so only the small fields need lifting — and the
+   floor is a max(), not a literal, so the small text step cannot dip under it. */
+.search-row input,.drawer textarea,.drawer select{font-size:max(16px, calc(16px * var(--ts)))}
 /* Every control stays thumb-sized. 33px and 31px were the old .btn-sm and
-   .toggle; .reset was a 14px underline that wipes all progress. */
-.search-row input,.toggle,.more,.reset{min-height:44px}
+   .toggle; .reset was a 14px underline that wipes all progress. Nothing here
+   is scaled: the text step multiplies font size only, so these are 44px at
+   every setting rather than 40.5px at the small one. */
+.search-row input,.toggle,.more,.reset,.drawer select{min-height:44px}
 .toggle{display:inline-flex;align-items:center}
 .reset{padding:12px 0}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* A long category name at the large text step is the only thing that can push
+   a 390px board sideways. */
+.q,.a,.tap-name,.bar-name{overflow-wrap:anywhere}
+.set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px}
+.set-row{display:flex;flex-direction:column;gap:6px}
+/* .cap is section signage at --m-sm, which is 8.74px at the small step this
+   very panel offers — a label smaller than the 16px option text it names. */
+.set-row .cap{font-size:var(--m)}
+.drawer select{width:100%;background:var(--walnut);color:var(--foam);
+  border:1px solid var(--rule);font-family:var(--mono);letter-spacing:.04em;padding:10px 12px}
+.set-toggles{display:flex;gap:12px;flex-wrap:wrap}
 </style>
+<script>
+/* Appearance is a property of this phone, not of anyone's progress, so it is
+   not in lastcall:v1 and it does not follow the person. It also has to be on
+   the page before the first paint: load() is async, and a theme read after it
+   resolves means painting walnut and repainting a second later.
+
+   Raw localStorage on both sides, deliberately. Store (further down) routes to
+   window.storage when the test harness has installed one — a different store,
+   and async by contract — so a look written through Store would not survive a
+   reload under the browser suite.
+
+   Nothing here writes. Only setLook() writes, and only from a change handler,
+   so a fresh install has exactly one key. */
+const LOOK_KEY='lastcall:look';
+const THEMES={lastcall:'#241A14', slate:'#171A1F', paper:'#FFFDF8', contrast:'#FFFFFF'};
+const FONTS=['lastcall','system','serif'];
+const SIZES=['s','m','l'];
+let look;
+/* One validator on both paths, so a hostile blob and a hand-typed setLook() are
+   clamped by the same three lines. An own-property test, not truthiness:
+   THEMES.constructor is truthy and would otherwise paint an undefined palette.
+   hasOwnProperty.call, not Object.hasOwn: hasOwn raises the app's browser floor
+   to Chrome 93 / Safari 15.4, and a TypeError here takes the whole page down. */
+function resolveLook(raw){
+  let o={};
+  try{ const p=JSON.parse(raw); if(p&&typeof p==='object'&&!Array.isArray(p)) o=p; }catch(e){}
+  return {theme: Object.prototype.hasOwnProperty.call(THEMES,o.theme)?o.theme:'lastcall',
+          font:  FONTS.includes(o.font)?o.font:'lastcall',
+          size:  SIZES.includes(o.size)?o.size:'m'};
+}
+function applyLook(l){
+  look=l;
+  const d=document.documentElement.dataset;
+  d.theme=l.theme; d.font=l.font; d.size=l.size;
+  document.querySelector('meta[name=theme-color]').content=THEMES[l.theme];
+}
+function setLook(patch){
+  applyLook(resolveLook(JSON.stringify({...look,...patch})));
+  try{ localStorage.setItem(LOOK_KEY,JSON.stringify(look)); }catch(e){}
+}
+/* The fallback is a literal, not resolveLook(null): whatever threw the first
+   time throws again on the way through it, and an uncaught throw here leaves
+   look undefined, which takes the main script down at $('setTheme').value and
+   with it every listener below — reset, import, export, the boot call. */
+try{ applyLook(resolveLook(localStorage.getItem(LOOK_KEY))); }
+catch(e){ applyLook({theme:'lastcall',font:'lastcall',size:'m'}); }
+</script>
 </head>
 <body>
 <div class="wrap">
 
   <header class="mast">
     <div>
-      <div class="eyebrow">Thursdays · brewery · six rounds</div>
+      <div class="eyebrow">drill · schedule · scorecard</div>
       <h1>Last<em>Call</em></h1>
     </div>
     <div class="mast-right" id="mastStat">loading progress…</div>
@@ -419,7 +595,7 @@ h1 em{font-style:normal;color:var(--amber)}
         </div>
         <div class="mode">
           <button class="btn" id="btnNight">Play the whole night</button>
-          <span class="cap">six rounds and a scorecard, the shape of a Thursday</span>
+          <span class="cap">six rounds and a scorecard between them</span>
         </div>
         <div class="mode">
           <button class="btn" id="btnBoardGame">Play a board</button>
@@ -429,7 +605,6 @@ h1 em{font-style:normal;color:var(--amber)}
 
       <div class="panel-foot">
         <button class="btn btn-sm" id="btnStats">The form guide</button>
-        <button class="toggle" id="btnTyped" aria-pressed="false">Type the answers</button>
         <button class="toggle" id="btnWhoAdd">Someone else's turn</button>
       </div>
     </div>
@@ -453,7 +628,7 @@ h1 em{font-style:normal;color:var(--amber)}
     <details class="drawer">
       <summary>Your own cards &amp; backups</summary>
       <p class="drawer-note">One card per line, fields separated by tabs: category, question, answer, optional note. A category you haven't used before becomes your own tap.</p>
-      <textarea id="tsv" rows="5" spellcheck="false" placeholder="Local&#9;Which street is the brewery on&#9;Mill Street&#9;They ask it every third week."></textarea>
+      <textarea id="tsv" rows="5" spellcheck="false" placeholder="Local&#9;Which street the town hall is on&#9;Mill Street&#9;Comes up every third round."></textarea>
       <div class="actions">
         <button class="btn btn-sm btn-go" id="btnImport">Add cards</button>
         <button class="btn btn-sm" id="btnExport">Export backup</button>
@@ -461,6 +636,51 @@ h1 em{font-style:normal;color:var(--amber)}
         <input type="file" id="fileImport" accept="application/json,.json" class="hidden">
       </div>
       <div class="drawer-note" id="ioMsg"></div>
+    </details>
+
+    <details class="drawer" id="setDrawer">
+      <summary>How it looks, and how it drills</summary>
+      <p class="drawer-note">The look is kept on this phone and stays put when the phone changes hands. The drill settings belong to whoever is holding it.</p>
+      <div class="set-grid">
+        <span class="set-row">
+          <label class="cap" for="setTheme">Theme</label>
+          <select id="setTheme">
+            <option value="lastcall">Last Call (dark)</option>
+            <option value="slate">Slate (dark)</option>
+            <option value="paper">Paper (light)</option>
+            <option value="contrast">High contrast</option>
+          </select>
+        </span>
+        <span class="set-row">
+          <label class="cap" for="setFont">Type</label>
+          <select id="setFont">
+            <option value="lastcall">Last Call</option>
+            <option value="system">Your device&rsquo;s own</option>
+            <option value="serif">Serif for the answers</option>
+          </select>
+        </span>
+        <span class="set-row">
+          <label class="cap" for="setSize">Text size</label>
+          <select id="setSize">
+            <option value="s">Small</option>
+            <option value="m">Regular</option>
+            <option value="l">Large</option>
+          </select>
+        </span>
+        <span class="set-row">
+          <label class="cap" for="setSitting">Cards per sitting</label>
+          <select id="setSitting">
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+          </select>
+        </span>
+      </div>
+      <div class="set-toggles">
+        <button class="toggle" id="btnTyped" aria-pressed="false">Type the answers</button>
+        <button class="toggle" id="btnRepeat" aria-pressed="true">Missed cards come round again</button>
+      </div>
     </details>
 
     <div class="footnote">
@@ -688,7 +908,14 @@ let mem=null, TESTING=false;
 /* games: one row per table game, [day, names[], scores[]] — the table's record,
    separate from hist because those answers were not all yours. */
 const DEFAULT=()=>({v:4,cur:'me',roster:[{id:'me',name:''}],
-  sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[],typed:false,hist:[],acc:{},names:'',games:[]});
+  sched:{},off:[],on:[],lastDay:null,streak:0,answered:0,user:[],typed:false,
+  sitting:20,repeat:true,hist:[],acc:{},names:'',games:[]});
+/* Four sizes, and anything else is 20. A restored backup and a hand-edited
+   blob both come through here, so there is no migration and no validation
+   anywhere else — and v stays 4, because a blob without the field takes the
+   DEFAULT() spread on the way in. */
+const SITTINGS=[10,20,30,50];
+const sittingOf=n=>SITTINGS.includes(n)?n:20;
 const HIST_MAX=400, GAMES_MAX=120;
 let S=DEFAULT();
 
@@ -701,7 +928,7 @@ let S=DEFAULT();
    one write: split across two, the big write is the one that fails under a
    full quota and the small one succeeds, leaving a pointer to data that was
    never saved. */
-const PERSONAL=['sched','hist','acc','streak','answered','lastDay','typed'];
+const PERSONAL=['sched','hist','acc','streak','answered','lastDay','typed','sitting','repeat'];
 /* Shared, each for a reason. Cards you add: a card's id is a hash of its
    question, so DECK has to be identical for everybody or an id stops meaning
    the same card. Switched-on decks: a switch would otherwise need a refetch,
@@ -1024,7 +1251,7 @@ function renderBoard(){
   if(shelf) $('shelfNote').textContent=`${shelf.toLocaleString()} more cards on the shelf — tap a row to switch one on`;
 
   $('sessionNote').textContent = due||fresh
-    ? `${due} due for review · ${fresh} you haven't seen · 20 per sitting`
+    ? `${due} due for review · ${fresh} you haven't seen · ${sittingOf(S.sitting)} per sitting`
     : 'Nothing due today.';
   /* A disabled control says why in its own caption. btnDrill explained itself
      three hundred pixels away and btnBoardGame did not explain itself at all —
@@ -1053,8 +1280,14 @@ function renderBoard(){
   $('whoRow').classList.toggle('hidden',!many);
   if(many) $('whoRow').innerHTML=S.roster.map(p=>
     `<button class="who-chip" data-who="${esc(p.id)}" aria-pressed="${p.id===S.cur}">${esc(whoName(p))}</button>`).join('');
-  // typed is personal, and its pressed state was only ever set at boot
+  /* typed is personal, and its pressed state was only ever set at boot. The
+     other two are personal for the same reason and sync in the same place:
+     switchTo() repaints through here, so handing the phone over brings that
+     person's sitting with it. The look selects are not here — they are the
+     phone's, and they do not change when the person does. */
   $('btnTyped').setAttribute('aria-pressed',String(!!S.typed));
+  $('btnRepeat').setAttribute('aria-pressed',String(!!S.repeat));
+  $('setSitting').value=sittingOf(S.sitting);
 
   /* At 23 decks a flat list is fine; with the local Jeopardy build it is 800,
      so each area shows a dozen until you ask for more, and search cuts across
@@ -1508,9 +1741,10 @@ function settleWager(right){
 
 function startDrill(){
   const act=activeCats();
+  const cap=sittingOf(S.sitting);
   const d=shuffle(dueCards().filter(c=>act.includes(c.c)));
-  const n=shuffle(newCards().filter(c=>act.includes(c.c))).slice(0,Math.max(0,20-d.length));
-  runDrill([...d,...n].slice(0,20));
+  const n=shuffle(newCards().filter(c=>act.includes(c.c))).slice(0,Math.max(0,cap-d.length));
+  runDrill([...d,...n].slice(0,cap));
 }
 
 function startLeechDrill(){ runDrill(shuffle(leechCards())); }
@@ -1558,7 +1792,7 @@ function runDrill(cards){
   show('stage'); paint();
 }
 
-/* Six rounds of ten is what a Thursday actually is. Rehearsing that shape —
+/* Six rounds of ten is what a full quiz actually is. Rehearsing that shape —
    the pacing, the running total, knowing you have three rounds left to make it
    up — is different from drilling cards, which is why it exists. */
 const NIGHT_ROUNDS=6;
@@ -1683,7 +1917,7 @@ function answer(g){
   if(mode==='drill'){
     grade(c.id,g);
     drillGrades.set(c.id,g);     // last grade wins: a missed card comes round again
-    if(g===1&&!isLeech(c.id)) Q.push(c.id);
+    if(g===1&&S.repeat&&!isLeech(c.id)) Q.push(c.id);
   }else{
     const pips=$('tally').children;
     if(pips[idx]) pips[idx].className='pip '+(g?'hit':'miss');
@@ -1719,7 +1953,7 @@ function drillResult(){
 
   // the button offers what is actually left, not a round twenty it cannot deal
   const act=activeCats();
-  const left=Math.min(20, dueCards().filter(c=>act.includes(c.c)).length
+  const left=Math.min(sittingOf(S.sitting), dueCards().filter(c=>act.includes(c.c)).length
                         + newCards().filter(c=>act.includes(c.c)).length);
   $('btnAgain').textContent = left ? `Another ${left}` : 'Nothing else is due';
   $('btnAgain').disabled = !left;
@@ -1740,7 +1974,7 @@ function finish(){
     $('wagerBox').classList.add('hidden');
     $('missedHead').textContent='Worth a second look';
     $('scoreNum').innerHTML=`${score}<small>/${Q.length}</small>`;
-    $('scoreLine').textContent = score===Q.length?'Clean sheet. Buy your own beer.'
+    $('scoreLine').textContent = score===Q.length?'Clean sheet. Nothing for the drill to fix.'
       : score>=Q.length*0.7?'Solid. Your table would have kept those points.'
       : score>=Q.length*0.4?'Middling — the drill is where this gets fixed.'
       : 'Rough round. Good news: now you know where to aim.';
@@ -1823,15 +2057,27 @@ $('btnTyped').onclick=()=>{
   S.typed=!S.typed; save();
   $('btnTyped').setAttribute('aria-pressed',String(!!S.typed));
 };
+$('btnRepeat').onclick=()=>{
+  S.repeat=!S.repeat; save();
+  $('btnRepeat').setAttribute('aria-pressed',String(!!S.repeat));
+};
+$('setSitting').onchange=e=>{ S.sitting=sittingOf(+e.target.value); save(); renderBoard(); };
+$('setTheme').onchange=e=>setLook({theme:e.target.value});
+$('setFont').onchange =e=>setLook({font:e.target.value});
+$('setSize').onchange =e=>setLook({size:e.target.value});
+// the look is already on the page — this is only the panel catching up to it
+$('setTheme').value=look.theme; $('setFont').value=look.font; $('setSize').value=look.size;
 $('btnReset').onclick=()=>{
   const me=S.roster.find(p=>p.id===S.cur);
   const whose=S.roster.length>1?`${whoName(me)}\u2019s`:'every';
   if(!confirm(`Clear ${whose} card scheduling and streak? Cards you added, the table\u2019s record and everybody else on this phone stay. This cannot be undone.`)) return;
   /* Only the person holding it. The table's record is other people's scores,
      and so is everybody else's schedule. */
-  const {user,games,names,roster,cur}=S;
+  /* sitting and repeat ride through too: they are settings, not progress, and
+     the theme from the same drawer survives a reset by living outside S. */
+  const {user,games,names,roster,cur,sitting,repeat}=S;
   S=DEFAULT();
-  Object.assign(S,{user,games,names,roster,cur,v:4});
+  Object.assign(S,{user,games,names,roster,cur,sitting,repeat,v:4});
   save(); buildDeck(); renderBoard();
 };
 
@@ -1995,6 +2241,46 @@ function selftest(){
   grade(t,3);
   ok('leech: an easy clears the flag', !isLeech(t));
 
+  /* Appearance: the validator is the only thing standing between a hand-edited
+     localStorage value and an undefined palette, so it gets the table. */
+  ok('look: an empty store lands on the shipped look',
+     resolveLook(null).theme==='lastcall' && resolveLook(null).font==='lastcall' && resolveLook(null).size==='m');
+  ok('look: a torn json string is a fallback, not a crash', resolveLook('{"theme":').theme==='lastcall');
+  ok('look: a string where an object belongs is refused', resolveLook('"paper"').theme==='lastcall');
+  ok('look: an array where an object belongs is refused', resolveLook('["paper"]').theme==='lastcall');
+  ok('look: wrong-typed fields are refused', (()=>{
+      const j=resolveLook('{"theme":42,"font":null,"size":["l"]}');
+      return j.theme==='lastcall'&&j.font==='lastcall'&&j.size==='m';})());
+  ok('look: a preset name that no longer exists falls back rather than painting nothing',
+     resolveLook('{"theme":"midnight"}').theme==='lastcall');
+  ok('look: an inherited object key is not a preset name',
+     resolveLook('{"theme":"constructor"}').theme==='lastcall');
+  ok('look: the good half of a half-bad blob survives', (()=>{
+      const j=resolveLook('{"theme":"paper","size":"xl"}');
+      return j.theme==='paper' && j.size==='m';})());
+  ok('look: every preset it accepts has a theme-color to paint the browser bar',
+     Object.keys(THEMES).every(t=>resolveLook(JSON.stringify({theme:t})).theme===t
+                                && /^#[0-9a-f]{6}$/i.test(THEMES[t])));
+  ok('look: all four presets are offered', Object.keys(THEMES).length===4);
+
+  ok('sitting: the shipped size is twenty', sittingOf(DEFAULT().sitting)===20);
+  ok('sitting: every size on the menu survives the round trip', SITTINGS.every(n=>sittingOf(n)===n));
+  ok('sitting: a number that is not on the menu is refused, not clamped to something odd',
+     sittingOf(0)===20 && sittingOf(-5)===20 && sittingOf(9999)===20 && sittingOf(19)===20);
+  ok('sitting: a blob that predates the setting still deals a sitting',
+     sittingOf(undefined)===20 && sittingOf(null)===20 && sittingOf('20')===20);
+
+  S=DEFAULT();
+  ok('drill: a missed card comes round again unless you say otherwise', S.repeat===true);
+  ok('drill: both drill knobs belong to the person, not the phone',
+     PERSONAL.includes('sitting') && PERSONAL.includes('repeat')
+     && !SHARED.includes('sitting') && !SHARED.includes('repeat'));
+  ok('drill: and both ride the backup', (()=>{
+      const b=blobOf().me[S.cur];
+      return b.sitting===20 && b.repeat===true;})());
+  ok('drill: the look does not ride the backup',
+     !('theme' in blobOf()) && !('theme' in blobOf().me[S.cur]));
+
   document.body.innerHTML=`<pre style="font:13px/1.7 var(--mono);padding:30px;white-space:pre-wrap">`+
     out.join('\n')+`\n\n${bad?bad+' FAILED':'all '+out.length+' passed'}</pre>`;
 }
@@ -2011,7 +2297,6 @@ if('serviceWorker' in navigator && location.protocol!=='file:'){
   buildDeck(); renderBoard();                  // the house deck paints immediately
   await loadManifest();
   buildDeck(); renderBoard();                  // then the shelf appears
-  $('btnTyped').setAttribute('aria-pressed',String(!!S.typed));
   await ensureDecks(S.on||[]);                 // then whatever was switched on last time
   renderBoard();
   if(!BUILTIN.length) $('sessionNote').textContent='cards.js did not load — keep it next to this file.';

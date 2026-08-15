@@ -1,7 +1,7 @@
 /* The content rule, enforced instead of remembered.
 
    A card whose answer decays is worse than no card: you will confidently give
-   last year's answer on a Thursday. This fails the build on that, and on the
+   last year's answer when it counts. This fails the build on that, and on the
    other ways a bulk-imported card goes wrong.
 
    node scripts/lint-decks.mjs
@@ -11,8 +11,8 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 const norm = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
 /* Each rule gets the card and returns a complaint, or nothing. Kept as plain
-   regexes with a note, because the next person to add one is reading this at
-   the pub. */
+   regexes with a note, because the next person to add one is reading this in
+   a hurry. */
 const DECAY = [
   [/\bas of\b/i,                          'says "as of"'],
   [/\bcurrently\b/i,                      'says "currently"'],

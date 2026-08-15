@@ -1,4 +1,4 @@
-/* Offline for a bar with bad wifi.
+/* Offline for somewhere with bad wifi.
 
    The shell is network-first so a deploy actually reaches you, falling back to
    cache when there is no signal. Deck files are stale-while-revalidate: the

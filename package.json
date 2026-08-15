@@ -2,7 +2,7 @@
   "name": "lastcall",
   "version": "1.0.0",
   "private": true,
-  "description": "Spaced-repetition drill for pub trivia",
+  "description": "Spaced-repetition drill for team trivia",
   "type": "module",
   "scripts": {
     "fetch:otdb": "node scripts/fetch-opentdb.mjs",

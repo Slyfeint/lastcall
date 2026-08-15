@@ -68,9 +68,12 @@ const nav = async (url = TARGET) => {
   }
   await sleep(250);
 };
-// pagehide flushes the live page's state over anything written from outside,
-// so a clean slate means resetting S itself, not clearing the store
-const reset = () => ev('S=DEFAULT(); flush()');
+/* pagehide flushes the live page's state over anything written from outside,
+   so a clean slate means resetting S itself, not clearing the store. The look
+   is the one thing that is not in S, and the sweep below changes it sixteen
+   times — left behind, a preset chosen by one assertion is what every section
+   under it gets measured in. */
+const reset = () => ev('S=DEFAULT(); flush(); localStorage.removeItem(LOOK_KEY)');
 /* A class named "hidden" is not the same as being invisible — CSS gets a vote.
    Ask the layout, not the class list. */
 const visible = id => ev(`(()=>{const e=document.getElementById(${JSON.stringify(id)});
@@ -79,7 +82,14 @@ const visible = id => ev(`(()=>{const e=document.getElementById(${JSON.stringify
 try {
   console.log(`--- ${TARGET}\n`);
 
-  await nav(); await reset(); await nav();
+  await nav();
+  /* Only setLook() writes, and only from a change handler, so a phone nobody
+     has touched carries no look key at all. Asserted here and nowhere else:
+     reset() removes the key, so anywhere below this it would be reading its own
+     answer. Demonstrated by moving the setItem into the head applier so it
+     writes back whatever it read — the key appears on a fresh install. */
+  ok('look: a fresh install has written nothing', await ev(`localStorage.getItem(LOOK_KEY)===null`));
+  await reset(); await nav();
   ok('boot: the built-in deck loaded', await ev('BUILTIN.length > 0'));
   ok('boot: every house category has a tap', await ev('BUILT_CATS.every(c=>document.querySelector(`.tap[data-cat="${c.id}"]`))'));
 
@@ -263,6 +273,11 @@ try {
 
   // --- reachable by keyboard, readable by everyone
   await reset(); await nav();
+  /* The settings panel is a <details>, and a closed one measures nothing — both
+     the name check below and the contrast sweep skip anything with no size, so
+     every control in it would be quietly uncovered rather than passed. This
+     open is load-bearing for both of them, not decoration. */
+  await ev(`document.getElementById('setDrawer').open=true`);
   const unnamed = await ev(`(()=>{
     const name=el=>(el.getAttribute('aria-label')||el.textContent||el.value||'').trim();
     return [...document.querySelectorAll('button, input, a[href], [tabindex]')]
@@ -276,6 +291,12 @@ try {
     [...document.querySelectorAll('.tap')].every(e=>e.getAttribute('aria-pressed')!==null)`));
   ok('a11y: the dive buttons name their category', await ev(`
     [...document.querySelectorAll('.dive')].every(e=>/^Dive into .+/.test(e.getAttribute('aria-label')||''))`));
+  /* A dropdown's textContent is every option glued together, so the name check
+     above passes it whatever you do. Only a label says what it sets.
+     Demonstrated by dropping the for= off one <label>. */
+  ok('a11y: every dropdown says what it sets', await ev(`
+    [...document.querySelectorAll('select')].every(s=>!!(s.getAttribute('aria-label')
+      || document.querySelector('label[for='+JSON.stringify(s.id)+']')))`));
   ok('a11y: the verdict is announced', await ev(`document.getElementById('verdict').getAttribute('aria-live')==='polite'`));
   ok('a11y: areas are headings, so you can jump between them', await ev(`document.querySelectorAll('h2.area').length>0`));
   ok('a11y: focus is visible, not suppressed', await ev(`[...[...document.styleSheets].find(s=>!s.href).cssRules]
@@ -283,59 +304,208 @@ try {
   ok('a11y: motion is optional', await ev(`[...[...document.styleSheets].find(s=>!s.href).cssRules]
       .some(r=>/prefers-reduced-motion/.test(r.conditionText||''))`));
 
-  /* Contrast, measured against what is actually painted — and this loop used to
-     read less than it claimed. Three things it could not see:
+  /* Contrast, measured against what is actually painted — and the backdrop is
+     now read off the screen, not computed. getComputedStyle().backgroundColor
+     is blind to background-image, and body carries two gradient layers: a
+     --glow radial ellipse and a --grain repeating-linear-gradient. Both
+     propagate to the canvas, where the positioning area is the root box —
+     100% of the viewport — so the pair repeats down the whole document and the
+     colour behind a body-backed element is never plain --walnut. Composited up
+     the ancestor chain, --copper on the board read 4.61:1 and passed; the
+     painted answer is lower. Same shape as the incident below: 6.16 measured,
+     2.63 painted.
+
+     So the element's own ink is turned transparent, Page.captureScreenshot
+     takes the viewport, and the backdrop is sampled out of those pixels — every
+     gradient, every translucent ancestor, already flattened by the renderer.
+     Only the background changes hands. The foreground is still the computed
+     colour composited through the accumulated opacity, because that is text: it
+     is what the ink would be, and the screenshot has no way to hand back a
+     glyph's colour separately from what it was painted over.
+
+     What the sampling has to catch, and how:
+       the glyphs, not the column — a Range over the contents gives the line
+         boxes, so a full-width block is measured where its text actually is
+       the grain — 2 dark px of every 7, so eight consecutive px per band
+       the glow — strongest at the top centre and falling off both ways, so
+         three bands across the width and three rows down each line box
+       the worst of them, not the average: grain darkens and helps light ink,
+         glow lightens and hurts it, and a ratio is only as good as its floor.
+     querySelector's first match is kept deliberately — for every body-backed
+     selector that is the topmost one, which is the most glow it ever gets.
+
+     The mapping from CSS pixels to image pixels is asserted rather than assumed
+     (below, on .btn-go): get the scale wrong and every sample lands somewhere
+     else, which is almost always plain walnut — that is to say, it all passes.
+     captureBeyondViewport was rejected for the same reason: it re-lays out the
+     page 15px narrower to drop the scrollbar, so the rects no longer describe
+     the image.
+
+     Three things a computed backdrop could not see either, all still covered:
        opacity — .tap.off faded its own text to 2.63:1 and the zero due count to
          1.57:1, both of which read as a comfortable 6.16:1 here
        translucent backgrounds — an rgba() surface was treated as opaque instead
          of composited over what sits behind it
        svg text — it is painted by `fill`, and reading `color` never saw a chart
-     A selector that is not on screen now prints SKIP instead of vanishing: the
-     old `continue` meant a typo'd selector was indistinguishable from a pass. */
-  const contrast = await ev(`(()=>{
+     A selector that is not on screen prints SKIP instead of vanishing: the old
+     `continue` meant a typo'd selector was indistinguishable from a pass.
+
+     And it is measured once per preset, not once. Every colour below is a token
+     a preset redefines, so a theme that ships at 2.6:1 is exactly the bug the
+     compositing above was written to catch — and it would have gone out
+     unmeasured on every theme but the one that happens to boot. The registry is
+     enumerated from the page with a literal count beside it: renamed, the loop
+     runs nought times and prints nothing, which reads exactly like a pass. The
+     text step is forced back to the default, because the threshold is
+     size-dependent and a large step can push a marginal selector past 24px and
+     quietly relax it from 4.5 to 3. */
+  const presets = await ev(`typeof THEMES!=='undefined' ? Object.keys(THEMES) : []`);
+  ok('a11y: every shipped preset gets measured, not just the one that boots', presets.length === 4);
+  /* The last four are states nobody reaches by sitting on the board — a row
+     mid-load and the two disabled buttons — so __stage switches them on.
+     .btn-go just before them is the enabled button: the one place --on-amber is
+     painted on --amber, and a flat opaque fill for the mapping assertion. */
+  const SELS = ['.tap.on .tap-name','.tap.off .tap-name','.tap.off .tap-style','.tap-style','.tap-pct',
+                '.tap-due.zero','.tap-due small','.area-n','.subline','.panel-note','.mast-right','.footnote',
+                'h2.area','.search-count','.dive','.keys','.list-head span','.eyebrow','.first-run',
+                '.shelf-note','.more','.reset','.drawer summary','.drawer select','.btn-go',
+                '.tap.busy .tap-name','.tap.busy .tap-pct','.btn:disabled','.btn-go:disabled'];
+  await ev(`(()=>{
     const px=s=>{const m=(s||'').match(/[\\d.]+/g)||[]; return [+m[0]||0,+m[1]||0,+m[2]||0, m[3]===undefined?1:+m[3]];};
     const over=(f,b)=>[f[0]*f[3]+b[0]*(1-f[3]), f[1]*f[3]+b[1]*(1-f[3]), f[2]*f[3]+b[2]*(1-f[3]), 1];
     const lum=c=>{const [r,g,b]=c.slice(0,3).map(v=>{v/=255;
       return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});
       return .2126*r+.7152*g+.0722*b;};
     const ratio=(a,b)=>{const [x,y]=[lum(a),lum(b)].sort((p,q)=>q-p); return (x+.05)/(y+.05);};
-    // the colour really behind an element: composite every translucent ancestor
-    const bgOf=el=>{
-      let out=null;
-      for(let n=el;n;n=n.parentElement){
-        const c=px(getComputedStyle(n).backgroundColor);
-        if(!c[3]) continue;
-        out = out ? over(out,c) : c;
-        if(c[3]===1) break;
-      }
-      return out || px(getComputedStyle(document.body).backgroundColor);
-    };
     // opacity multiplies down the tree, so a faded row dims its own text
     const opacityOf=el=>{let o=1;
       for(let n=el;n&&n!==document.documentElement;n=n.parentElement) o*=parseFloat(getComputedStyle(n).opacity)||0;
       return o;};
-    const out=[];
-    for(const sel of ['.tap.on .tap-name','.tap.off .tap-name','.tap.off .tap-style','.tap-style','.tap-pct',
-                      '.tap-due.zero','.area-n','.subline','.panel-note','.mast-right','.footnote',
-                      'h2.area','.search-count','.dive','.keys','.list-head span']){
+    const hex=c=>'#'+c.slice(0,3).map(v=>Math.round(v).toString(16).padStart(2,'0')).join('').toUpperCase();
+    let img=null, scale=1;
+    const at=(x,y)=>{ x=Math.round(x*scale); y=Math.round(y*scale);
+      if(x<0||y<0||x>=img.width||y>=img.height) return null;
+      const i=(y*img.width+x)*4; return [img.data[i],img.data[i+1],img.data[i+2],1]; };
+    const load=src=>new Promise(r=>{const i=new Image(); i.onload=()=>{
+      const c=document.createElement('canvas'); c.width=i.width; c.height=i.height;
+      const g=c.getContext('2d'); g.drawImage(i,0,0);
+      img=g.getImageData(0,0,i.width,i.height); scale=i.width/innerWidth; r(); };
+      i.src='data:image/png;base64,'+src;});
+    let undo=[];
+    window.__stage=sels=>{
+      /* First, or every number below is read off a frame mid-fade. .btn carries
+         a .14s transition on background, colour and border-colour, so switching
+         preset starts a fade, disabling a button starts another, and turning
+         the ink transparent starts a third — the colour read here and the pixel
+         in the screenshot a moment later then come from different frames of it.
+         Setting transition:none cancels a running one onto its target value, so
+         this settles the page rather than waiting a guessed number of
+         milliseconds for it. Same rule the app ships under prefers-reduced-
+         motion, and it stops @keyframes pulse mid-sweep for the same reason. */
+      document.head.insertAdjacentHTML('beforeend',
+        '<style id="noMotion">*{transition:none!important;animation:none!important}</style>');
+      undo.push(()=>document.getElementById('noMotion').remove());
+      /* Four states nothing on the board reaches on its own. A screenshot can
+         only read what is painted, so a state that is never on screen is a
+         state nobody measures — .tap.busy and both disabled buttons went out
+         unread on every preset until they were switched on here. */
+      const row=document.querySelector('.tap');
+      if(row){ row.classList.add('busy'); undo.push(()=>row.classList.remove('busy')); }
+      /* Not a .mode .btn: .mode .btn:disabled+.cap recolours the caption beside
+         it, which would put a second element into a state the app never shows. */
+      for(const id of ['btnExport','btnImport']){
+        const b=document.getElementById(id);
+        if(b&&!b.disabled){ b.disabled=true; undo.push(()=>{b.disabled=false;}); }
+      }
+      for(const d of document.querySelectorAll('details'))
+        if(!d.open){ d.open=true; undo.push(()=>{d.open=false;}); }
+      // the drill's own text, without playing a card: both panes are display
+      // toggles on separate elements, so the stage can be shown under the board
+      const stage=document.getElementById('stage');
+      if(stage&&!stage.classList.contains('live')){
+        stage.classList.add('live'); undo.push(()=>stage.classList.remove('live'));
+      }
+      /* Read every colour before the ink goes, not after: the rule below is
+         what the element is wearing while the screenshot is taken, so a
+         getComputedStyle() from inside __measure reads transparent and every
+         ratio comes back 1.00 — which fails loudly, but only by luck.
+         Descendants are included in it because .mast-right b, .first-run b and
+         .tap-due small set colours of their own: unsilenced, their glyphs land
+         inside the parent's line boxes and get sampled as backdrop. */
+      window.__meta={};
+      for(const s of sels){
+        const el=document.querySelector(s); if(!el) continue;
+        const cs=getComputedStyle(el);
+        const isSvg=!!(el.namespaceURI&&el.namespaceURI.includes('svg'));
+        const ink=px(isSvg?cs.fill:cs.color);
+        ink[3]*=opacityOf(el);
+        __meta[s]={ink, size:parseFloat(cs.fontSize), weight:cs.fontWeight, own:hex(px(cs.backgroundColor))};
+        el.setAttribute('data-ink-off','');
+      }
+      document.head.insertAdjacentHTML('beforeend','<style id="inkOff">[data-ink-off],[data-ink-off] *{'+
+        'color:transparent!important;fill:transparent!important;text-shadow:none!important}</style>');
+      undo.push(()=>{ document.getElementById('inkOff').remove();
+        document.querySelectorAll('[data-ink-off]').forEach(e=>e.removeAttribute('data-ink-off')); });
+    };
+    window.__unstage=()=>{ undo.reverse().forEach(f=>f()); undo=[]; };
+    window.__place=async sel=>{
       const el=document.querySelector(sel);
-      if(!el){ out.push({sel,missing:true}); continue; }
-      const cs=getComputedStyle(el);
-      const bg=bgOf(el);
-      const isSvg=!!(el.namespaceURI&&el.namespaceURI.includes('svg'));
-      const raw=px(isSvg?cs.fill:cs.color);
-      raw[3]*=opacityOf(el);
-      out.push({sel, ratio:+ratio(over(raw,bg),bg).toFixed(2),
-                size:parseFloat(cs.fontSize), weight:cs.fontWeight});
-    }
-    return out;
+      if(!el) return false;
+      const box=el.getBoundingClientRect();
+      if(!box.width||!box.height) return false;
+      el.scrollIntoView({block:"center"});
+      // a capture fired straight after a scroll or a setLook catches the paint before it
+      await new Promise(go=>requestAnimationFrame(()=>requestAnimationFrame(go)));
+      return true;
+    };
+    window.__measure=async(sel,shot)=>{
+      await load(shot);
+      const el=document.querySelector(sel), m=__meta[sel], ink=m.ink;
+      const rg=document.createRange(); rg.selectNodeContents(el);
+      const lines=[...rg.getClientRects()].filter(r=>r.width>2&&r.height>2);
+      const boxes=(lines.length?lines:[el.getBoundingClientRect()]).slice(0,3);
+      let worst=null;
+      for(const r of boxes)
+        for(const bx of [r.left+1, r.left+r.width/2-4, r.right-9])
+          for(let dx=0;dx<8;dx++)
+            for(const f of [.3,.5,.7]){
+              const bg=at(bx+dx, r.top+r.height*f);
+              if(!bg) continue;
+              const v=ratio(over(ink,bg),bg);
+              if(!worst||v<worst.v) worst={v,bg};
+            }
+      if(!worst) return {sel,missing:true};
+      /* Pinned at the element's own top edge, not its middle: a scale that is
+         two per cent out still lands in the middle of a big flat button and
+         says yes, while every sample further down the page is off-target. */
+      const box=el.getBoundingClientRect(), cx=box.left+box.width/2;
+      const mid=at(cx, box.top+2), out=at(cx, box.top-4);
+      return {sel, ratio:+worst.v.toFixed(2), bg:hex(worst.bg),
+              size:m.size, weight:m.weight, mid:mid&&hex(mid), out:out&&hex(out), own:m.own};
+    };
   })()`);
+  const shot = async () => (await send('Page.captureScreenshot', { format: 'png' })).result.data;
+  for (const preset of presets) {
+  await ev(`setLook({theme:${JSON.stringify(preset)}, font:'lastcall', size:'m'})`);
+  await ev(`__stage(${JSON.stringify(SELS)})`);
+  const contrast = [];
+  for (const sel of SELS) {
+    if (!await ev(`__place(${JSON.stringify(sel)})`)) { contrast.push({ sel, missing: true }); continue; }
+    contrast.push(await ev(`__measure(${JSON.stringify(sel)}, ${JSON.stringify(await shot())})`));
+  }
+  await ev(`__unstage()`);
   for (const c of contrast) {
-    if (c.missing) { console.log(`SKIP  a11y: ${c.sel} is not on screen here — not measured`); continue; }
+    if (c.missing) { console.log(`SKIP  a11y: [${preset}] ${c.sel} is not on screen here — not measured`); continue; }
+    if (c.sel === '.btn-go') ok(`a11y: [${preset}] the sweep is aimed at the pixels the element occupies `
+                                + `(${c.mid} inside its top edge, ${c.out} just above it, fill is ${c.own})`,
+                                c.mid === c.own && c.out !== c.own);
     const large = c.size >= 24 || (c.size >= 18.66 && +c.weight >= 700);
     const need = large ? 3 : 4.5;
-    ok(`a11y: ${c.sel} contrast ${c.ratio}:1 clears ${need}:1`, c.ratio >= need);
+    ok(`a11y: [${preset}] ${c.sel} contrast ${c.ratio}:1 on painted ${c.bg} clears ${need}:1`, c.ratio >= need);
   }
+  }
+  // or every section below here is measured in whichever preset the loop stopped on
+  await ev(`setLook({theme:'lastcall', font:'lastcall', size:'m'})`);
 
   // keyboard alone must get you through a card
   await ev(`document.getElementById('btnDrill').click()`);
@@ -383,15 +553,24 @@ try {
     document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
     document.getElementById('board').classList.contains('live')`));
 
-  /* --- the phone. This is played standing up in a bar, so the checks that
+  /* --- the phone. This is played standing up, one-handed, so the checks that
      matter are measured at a phone's width, not asserted from the CSS. */
+  const PHONE_W = 390;
   const phone = on => on
-    ? send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 3, mobile: true })
+    ? send('Emulation.setDeviceMetricsOverride', { width: PHONE_W, height: 844, deviceScaleFactor: 3, mobile: true })
     : send('Emulation.clearDeviceMetricsOverride');
   await reset(); await phone(true); await nav();
 
-  ok('phone: the board does not scroll sideways', await ev(
-    `document.documentElement.scrollWidth <= window.innerWidth + 1`));
+  /* Measured against the width being emulated, and off the same constant, not
+     against window.innerWidth. With width=device-width and no maximum-scale the
+     emulator widens the layout viewport to whatever the content turns out to
+     need, so innerWidth grows to meet scrollWidth and the two stay equal however
+     far the board spills — the old form was a check that could not fail.
+     Demonstrated with the large text step wound up to 3: the board really is
+     888px across and the comparison still said yes. */
+  const fitsPhone = () => ev(`document.documentElement.scrollWidth <= ${PHONE_W + 1}`);
+
+  ok('phone: the board does not scroll sideways', await fitsPhone());
   ok('phone: the due count survives — it is the reason to read the row', await ev(`(()=>{
     const d=document.querySelector('.tap-due');
     return !!d && d.offsetWidth+d.offsetHeight>0;})()`));
@@ -404,13 +583,47 @@ try {
   /* Every visible control has to be thumb-sized. Named by nothing, so it covers
      controls that do not exist yet. */
   const tiny = async where => ev(`(()=>{
-    return [...document.querySelectorAll('button, a[href], input, summary, [tabindex]')]
+    return [...document.querySelectorAll('button, a[href], input, select, summary, [tabindex]')]
       .filter(el=>el.offsetWidth+el.offsetHeight>0 && !el.disabled)
       .filter(el=>{const r=el.getBoundingClientRect(); return Math.min(r.width,r.height) < 44;})
       .map(el=>el.id||el.className||el.tagName).slice(0,8);
   })()`).then(list => { ok(`phone: every control on the ${where} is thumb-sized`, list.length === 0);
     if (list.length) console.log('        under 44px: ' + list.join(', ')); });
   await tiny('board');
+
+  /* The settings panel is a <details>, and a closed one measures nothing, so
+     none of it is covered until it is opened. The smallest text step is where
+     to look: nothing in this sheet scales padding, so a control sized by its
+     own type is the one that falls under the thumb first. Demonstrated by
+     taking .drawer select back out of the min-height:44px list — all four
+     dropdowns print at about 41px. */
+  await ev(`document.getElementById('setDrawer').open=true; setLook({size:'s'})`);
+  await tiny('settings panel at the smallest text');
+  // demonstrated by widening the settings grid's minmax to 420px: the panel
+  // alone is then wider than the phone, at every text step
+  ok('phone: nor does it scroll sideways with the settings panel open', await fitsPhone());
+  /* Under 16px iOS zooms into a field on focus and never zooms back out. The
+     sheet has said so since the search row was added and nothing ever measured
+     it — and the text step is precisely what can drag it back under.
+     Demonstrated by replacing the max(16px, …) with a bare calc: 14.7px. */
+  ok('phone: the fields iOS zooms into never drop under 16px', await ev(`
+    ['deckSearch','setTheme','setSitting','tsv'].every(id=>
+      parseFloat(getComputedStyle(document.getElementById(id)).fontSize)>=16)`));
+  /* Every combination, because picking the one that looked worst picked wrong.
+     This was a single assertion on system-ui at the large step, reasoning that
+     system-ui is wider than Antonio — but the row that spills is the search
+     row, whose count is mono, and ui-monospace resolves to Consolas, which is
+     narrower than JetBrains Mono. system+l was the only one of the nine that
+     fitted, so the check passed while lastcall+l and serif+l were 436px across.
+     Demonstrated by taking min-width:0 back off .search-row input. */
+  for (const font of ['lastcall', 'system', 'serif'])
+    for (const size of ['s', 'm', 'l']) {
+      await ev(`setLook({font:'${font}', size:'${size}'})`);
+      const w = await ev('document.documentElement.scrollWidth');
+      ok(`phone: nor at ${size} text in ${font}`, w <= PHONE_W + 1);
+      if (w > PHONE_W + 1) console.log(`        ${w}px across a ${PHONE_W}px phone`);
+    }
+  await ev(`setLook({theme:'lastcall', font:'lastcall', size:'m'})`);
 
   await ev(`document.getElementById('btnDrill').click();
             (()=>{ for(let i=0;i<12;i++){ if(!flipped) flip(); answer(i%3?2:1); } })();
@@ -604,7 +817,7 @@ try {
   ok('who: on whichever person was holding it', await ev(`S.roster[1].id===S.cur`));
   ok('who: with their own schedule, not the other one', await ev('Object.keys(S.sched).length') === martaCount);
   ok('who: and it is all one key, so a full quota cannot tear it', await ev(`
-    Object.keys(localStorage).filter(k=>k.startsWith('lastcall')).length===1`));
+    Object.keys(localStorage).filter(k=>k.startsWith('lastcall:v')).length===1`));
 
   // a reset is for whoever is holding the phone
   await ev(`window.confirm=()=>true; document.getElementById('btnReset').click()`);
@@ -944,6 +1157,20 @@ try {
   // --- typing the answer
   await reset(); await nav();
   ok('typed: off by default, the flip button is what you get', await ev(`!document.getElementById('flipRow').classList.contains('hidden')`));
+  /* One node for one flag. Demonstrated by leaving a second #btnTyped in the
+     panel foot when it moved into the settings panel: two switches for one
+     boolean is how the two of them come apart later. */
+  ok('typed: one switch for it, not two kept in step', await ev(`
+    document.querySelectorAll('#btnTyped').length===1`));
+  /* The pressed state used to be set at boot and never again, so handing the
+     phone to somebody who types showed a switch reading off while the drill
+     asked them to type. Demonstrated by dropping the btnTyped line out of
+     renderBoard()'s sync block — the click path still works and only this
+     fails. */
+  await ev(`S.typed=true; renderBoard()`);
+  ok('typed: the switch follows the state, not only the other way round', await ev(`
+    document.getElementById('btnTyped').getAttribute('aria-pressed')==='true'`));
+  await ev(`S.typed=false; renderBoard()`);
   await ev(`document.getElementById('btnTyped').click()`);
   ok('typed: the toggle reports itself pressed', await ev(`document.getElementById('btnTyped').getAttribute('aria-pressed')==='true'`));
   await ev(`document.getElementById('btnDrill').click()`);
@@ -985,9 +1212,103 @@ try {
   ok('typed: the preference is remembered', await ev('S.typed===true'));
   await ev(`document.getElementById('btnTyped').click(); flush()`);
 
+  // --- how it looks, and how it drills
+  await reset(); await nav();
+  /* Demonstrated by moving the applier <script> out of <head> and down to just
+     inside <body>. Everything still works and every colour assertion still passes —
+     this is the only one that catches the flash of walnut before a light preset
+     paints. */
+  ok('look: it is on the page before the body is, so a light preset never flashes walnut', await ev(`
+    [...document.head.querySelectorAll('script')].some(s=>/applyLook/.test(s.textContent))`));
+
+  await ev(`setLook({theme:'paper'})`);
+  await nav();
+  /* Demonstrated by taking the setItem out of setLook(): the preset paints, and
+     is gone after the reload because nothing wrote it down. */
+  ok('look: a preset survives a reload', await ev(`document.documentElement.dataset.theme==='paper'`));
+  /* Demonstrated by deleting the meta line from applyLook(). Nothing else
+     notices, and the phone's own status bar stays walnut over a white page. */
+  ok('look: the browser bar is painted to match', await ev(`
+    document.querySelector('meta[name=theme-color]').content===THEMES.paper`));
+  /* A literal map rather than anything read off the page — color-scheme is what
+     draws the scrollbar, the search field's clear button and the dropdown's own
+     chrome, and a light preset that forgets it gets dark platform furniture on
+     white. Demonstrated by deleting the line from the paper block. */
+  ok('look: every preset tells the platform which way up it is', await ev(`
+    Object.entries({lastcall:'dark',slate:'dark',paper:'light',contrast:'light'}).every(([t,want])=>{
+      setLook({theme:t});
+      return getComputedStyle(document.documentElement).colorScheme===want;})`));
+
+  await ev(`localStorage.setItem(LOOK_KEY,'{"theme":"</style>","font":42,"size":["l"]}')`);
+  await nav();
+  /* Demonstrated by weakening resolveLook to a truthiness test, o.theme?o.theme,
+     instead of the own-property test: the attribute takes the junk value, no preset
+     block matches it, and the app paints the bare :root — so it is the dataset
+     half that goes red, not the colour. */
+  ok('look: a hostile stored value paints a shipped preset, not nothing', await ev(`
+    document.documentElement.dataset.theme==='lastcall'
+    && document.documentElement.dataset.font==='lastcall'
+    && document.documentElement.dataset.size==='m'
+    && getComputedStyle(document.body).backgroundColor==='rgb(36, 26, 20)'`));
+  await ev(`localStorage.setItem(LOOK_KEY,'{"theme":')`);
+  await nav();
+  /* Guarded twice — resolveLook wraps the parse, and the boot call falls back
+     again — so both have to go before this can fail. With neither, the head
+     script throws, the dataset is never stamped and nothing below it is wired. */
+  ok('look: torn json is a shipped preset, not a page that will not start', await ev(`
+    document.documentElement.dataset.theme==='lastcall' && !!document.getElementById('btnDrill')`));
+
+  /* sw.js hands cross-origin requests straight to the network and never caches
+     them, so a family outside the one <link> in the head is a family that is
+     not there in a basement.
+
+     Measured first, before anything has touched the font, and that ordering is
+     the whole assertion: the structural check below walks all three settings
+     itself, so a baseline taken after it already contains whatever a bad
+     setting fetched, and the comparison passes while reporting the offending
+     host in its own name. Demonstrated by injecting a second stylesheet <link>
+     when 'system' is picked — this way round it goes red, the other way round
+     it printed the intruder and passed. */
+  const originsOf = `[...new Set(performance.getEntriesByType('resource')
+    .map(e=>new URL(e.name).origin))].filter(o=>o!==location.origin).sort()`;
+  const hostsBefore = await ev(originsOf);
+  await ev(`FONTS.forEach(f=>setLook({font:f})); setLook({font:'lastcall'});
+            document.fonts.ready.then(()=>true)`);
+  await sleep(900);
+  const hostsAfter = await ev(originsOf);
+  ok(`offline: asking for each font in turn fetched nothing new (${hostsAfter.join(' ') || 'nothing off-site'})`,
+     hostsAfter.join() === hostsBefore.join());
+  // and the same fence stated as markup, which catches a host that never
+  // resolves and so never records a resource entry at all
+  ok('offline: no font choice reaches for a host the basement cannot serve', await ev(`
+    FONTS.every(f=>{ setLook({font:f});
+      const off=[...document.querySelectorAll('link[href]')]
+        .filter(l=>new URL(l.href,location.href).origin!==location.origin);
+      return off.filter(l=>l.rel==='stylesheet').length===1
+        && [...new Set(off.map(l=>new URL(l.href).host))].sort().join()
+           ==='fonts.googleapis.com,fonts.gstatic.com';})`));
+  await ev(`setLook({font:'lastcall'})`);
+
+  await reset(); await nav();
+  await ev(`(()=>{const s=document.getElementById('setSitting');
+            s.value='10'; s.dispatchEvent(new Event('change'));})()`);
+  ok('sitting: the number you chose is the one that is kept', await ev(`S.sitting===10`));
+  /* The slice and the sentence are written in two different places, which is
+     what makes this the pair that gets half-done. Demonstrated by leaving the
+     sentence on its old hardcoded twenty while the slice moves. */
+  ok('sitting: and the sentence on the board says the same number', await ev(`
+    /10 per sitting/.test(document.getElementById('sessionNote').textContent)`));
+  await ev(`document.getElementById('btnDrill').click()`);
+  /* Demonstrated by putting the round twenty back into startDrill — both the
+     new-card budget and the slice. The slice on its own is not enough: with
+     nothing due yet it is the budget that decides the deal, and the check still
+     passed with a hardcoded twenty sitting right there. */
+  ok('sitting: the drill deals the size you chose, not a round twenty', await ev(`Q.length===10`));
+  await ev(`document.getElementById('btnQuit').click()`);
+
   // --- hand-added cards
   await reset(); await nav();
-  await ev(`document.getElementById('tsv').value="Local\\tWhich street is the brewery on\\tMill Street\\tasked every third week\\r\\nMusic Before 1980\\tWho played bass for the Jam\\tBruce Foxton\\r\\njunk\\r\\n";
+  await ev(`document.getElementById('tsv').value="Local\\tWhich street the town hall is on\\tMill Street\\tcomes up every third round\\r\\nMusic Before 1980\\tWho played bass for the Jam\\tBruce Foxton\\r\\njunk\\r\\n";
             document.getElementById('btnImport').click()`);
   ok('cards: two rows parsed, junk dropped', /Added 2 cards/.test(await ev(`document.getElementById('ioMsg').textContent`)));
   ok('cards: an unknown category becomes its own tap', await ev(`[...document.querySelectorAll('.tap-name')].some(e=>e.textContent==='Local')`));
